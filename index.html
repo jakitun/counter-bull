@@ -69,26 +69,53 @@ let bulls = 0;
 let visits = 0;
 let blanks = 0;
 let hatTricks = 0;
-let target = 50;
+let taps = [];
 
-// AUDIO CONTEXT (persistent)
+let target = parseInt(localStorage.getItem("defaultTarget")) || 50;
+
+let lastTapTime = 0;
+const TAP_DELAY = 50; // ghost tap protection
+
+let sessionActive = true;
+
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-const hero = document.getElementById("hero");
+const bullsEl = document.getElementById("bulls");
 const visitsEl = document.getElementById("visits");
 const bpvEl = document.getElementById("bpv");
+const targetInput = document.getElementById("targetInput");
 const historyEl = document.getElementById("history");
+
+// CREATE SUMMARY SCREEN (inject if not exists)
+let summary = document.getElementById("summary");
+if (!summary) {
+  summary = document.createElement("div");
+  summary.id = "summary";
+  summary.className = "hidden fixed inset-0 bg-black flex flex-col items-center justify-center text-center p-6";
+  summary.innerHTML = `
+    <div class="text-3xl font-bold mb-4">Session Complete</div>
+    <div id="summaryText" class="text-lg mb-6"></div>
+    <button id="restartBtn" class="bg-white text-black px-6 py-3 rounded">New Session</button>
+  `;
+  document.body.appendChild(summary);
+}
+
+const summaryText = document.getElementById("summaryText");
+const restartBtn = document.getElementById("restartBtn");
+
+// INIT TARGET
+targetInput.value = target;
 
 // UPDATE UI
 function updateUI() {
-  hero.innerText = `${bulls} / ${target}`;
+  bullsEl.innerText = bulls;
   visitsEl.innerText = `Visits ${visits}`;
   const bpv = visits ? (bulls / visits).toFixed(2) : "0.00";
   bpvEl.innerText = `BPV ${bpv}`;
 }
 
 // AUDIO
-function beep(freq, delay=0) {
+function beep(freq, delay=0, dur=0.05) {
   const osc = audioContext.createOscillator();
   const gain = audioContext.createGain();
 
@@ -100,7 +127,7 @@ function beep(freq, delay=0) {
   gain.connect(audioContext.destination);
 
   osc.start(audioContext.currentTime + delay);
-  osc.stop(audioContext.currentTime + delay + 0.04);
+  osc.stop(audioContext.currentTime + delay + dur);
 }
 
 function playSound(v) {
@@ -108,6 +135,10 @@ function playSound(v) {
   if (v === 1) beep(300);
   if (v === 2) { beep(400); beep(400, 0.15); }
   if (v === 3) { beep(500); beep(500, 0.10); beep(500, 0.20); }
+}
+
+function undoSound() {
+  beep(150, 0, 0.1);
 }
 
 // FLASH
@@ -125,10 +156,17 @@ function flash(btn, v) {
 // TAP
 function handleTap(v, btn) {
 
-  // iOS AUDIO FIX
+  if (!sessionActive) return;
+
+  const now = Date.now();
+  if (now - lastTapTime < TAP_DELAY) return;
+  lastTapTime = now;
+
   if (audioContext.state === "suspended") {
     audioContext.resume();
   }
+
+  taps.push(v);
 
   visits++;
   bulls += v;
@@ -143,9 +181,31 @@ function handleTap(v, btn) {
   if (bulls >= target) endSession();
 }
 
-// END SESSION
+// UNDO
+document.getElementById("undo").onclick = () => {
+  if (!taps.length || !sessionActive) return;
+
+  if (audioContext.state === "suspended") {
+    audioContext.resume();
+  }
+
+  const last = taps.pop();
+
+  visits--;
+  bulls -= last;
+
+  if (last === 0) blanks--;
+  if (last === 3) hatTricks--;
+
+  undoSound();
+  updateUI();
+};
+
+// END SESSION (NOW SHOWS SUMMARY)
 function endSession() {
-  if (!visits) return;
+  if (!visits || !sessionActive) return;
+
+  sessionActive = false;
 
   const bpv = (bulls / visits).toFixed(2);
   const blankRate = ((blanks / visits) * 100).toFixed(1);
@@ -164,9 +224,25 @@ function endSession() {
   runs.unshift(run);
   localStorage.setItem("oche_sessions", JSON.stringify(runs.slice(0, 50)));
 
-  reset();
   renderHistory();
+
+  summaryText.innerHTML = `
+    Target ${target}<br><br>
+    Bulls ${bulls}<br>
+    Visits ${visits}<br>
+    BPV ${bpv}<br>
+    Blank ${blankRate}%<br>
+    3s ${hatTricks}
+  `;
+
+  summary.classList.remove("hidden");
 }
+
+// RESTART (ONLY WAY BACK)
+restartBtn.onclick = () => {
+  summary.classList.add("hidden");
+  reset();
+};
 
 // RESET
 function reset() {
@@ -174,12 +250,20 @@ function reset() {
   visits = 0;
   blanks = 0;
   hatTricks = 0;
+  taps = [];
+  sessionActive = true;
   updateUI();
 }
 
-// BUTTON SETUP
+// TARGET CHANGE
+targetInput.addEventListener("change", () => {
+  target = parseInt(targetInput.value) || 50;
+  localStorage.setItem("defaultTarget", target);
+});
+
+// BUTTONS
 document.querySelectorAll(".btn").forEach(btn => {
-  btn.className = "border border-white/20 rounded-2xl flex items-center justify-center text-6xl font-bold";
+  btn.className = "border border-white/20 rounded-2xl text-6xl font-bold h-full w-full flex items-center justify-center";
 
   btn.addEventListener("touchstart", e => {
     e.preventDefault();
