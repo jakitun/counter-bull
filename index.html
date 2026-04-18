@@ -105,9 +105,9 @@ function beep(freq, delay=0) {
 
 function playSound(v) {
   if (v === 0) beep(200);
-  if (v === 1) beep(400);
-  if (v === 2) { beep(600); beep(600, 0.05); }
-  if (v === 3) { beep(800); beep(800, 0.04); beep(800, 0.08); }
+  if (v === 1) beep(300);
+  if (v === 2) { beep(400); beep(400, 0.40); }
+  if (v === 3) { beep(500); beep(500, 0.20); beep(500, 0.20); }
 }
 
 // FLASH
