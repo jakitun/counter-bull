@@ -11,44 +11,35 @@
 <meta name="theme-color" content="#000000">
 
 <style>
-html, body { height: 100%; }
+html, body {
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+  overflow: hidden;
+}
 </style>
 </head>
 
-<body class="bg-black text-white select-none">
+<body class="bg-black text-white">
 
-<div class="h-full flex flex-col p-4">
+<div id="app" class="h-full flex flex-col p-4">
+
+  <!-- TOP BAR -->
+  <div class="flex justify-between items-center mb-3">
+    <div class="text-lg font-bold">Practice</div>
+    <button id="toggleView" class="text-xs opacity-60">Insights</button>
+  </div>
 
   <!-- STATS -->
-  <div class="text-center mb-2">
-    <div class="text-sm opacity-60">Bulls / Visits / BPV</div>
-    <div id="stats" class="text-3xl font-bold">0 / 0 / 0.00</div>
-  </div>
-
-  <!-- BEST -->
-  <div class="text-center mb-3">
-    <div id="best" class="text-sm opacity-50">Best: —</div>
-  </div>
-
-  <!-- TARGET -->
-  <div class="text-center mb-3">
-    <input id="targetInput" type="number" value="50"
-      class="bg-gray-900 text-white text-center text-xl w-24 p-2 rounded">
-    <div class="text-xs opacity-50 mt-1">Target</div>
-  </div>
-
-  <!-- TIMER -->
   <div class="text-center mb-4">
-    <div id="timer" class="text-5xl font-bold">0.0s</div>
+    <div class="text-sm opacity-60">Target</div>
+    <div id="targetDisplay" class="text-2xl mb-2">50</div>
+
+    <div class="text-sm opacity-60">Visits / BPV</div>
+    <div id="stats" class="text-3xl font-bold">0 / 0.00</div>
   </div>
 
-  <!-- CONTROLS -->
-  <div class="flex gap-2 mb-4">
-    <button id="pauseBtn" class="flex-1 bg-gray-800 py-3 rounded text-lg">Pause</button>
-    <button id="stopBtn" class="flex-1 bg-red-700 py-3 rounded text-lg">Stop</button>
-  </div>
-
-  <!-- BUTTON GRID -->
+  <!-- GRID -->
   <div class="grid grid-cols-2 gap-4 flex-1">
     <button class="btn" data-value="0">0</button>
     <button class="btn" data-value="1">1</button>
@@ -58,156 +49,150 @@ html, body { height: 100%; }
 
 </div>
 
-<!-- SUMMARY -->
-<div id="summary" class="hidden fixed inset-0 bg-black flex flex-col items-center justify-center text-center p-6">
-  <div class="text-4xl font-bold mb-4">Finished</div>
-  <div id="summaryText" class="text-lg mb-6"></div>
-  <button onclick="location.reload()" class="bg-white text-black px-6 py-3 rounded text-lg">Restart</button>
+<!-- INSIGHTS VIEW -->
+<div id="insights" class="hidden fixed inset-0 bg-black p-4 overflow-y-auto">
+  <div class="flex justify-between mb-4">
+    <div class="text-lg font-bold">Insights</div>
+    <button id="backBtn" class="text-xs opacity-60">Back</button>
+  </div>
+
+  <div id="history" class="space-y-2 text-sm"></div>
 </div>
 
-<!-- HISTORY -->
-<div class="fixed bottom-0 left-0 right-0 bg-black p-3 text-xs opacity-70 max-h-40 overflow-y-auto">
-  <div class="mb-1">History</div>
-  <div id="history"></div>
+<!-- SUMMARY -->
+<div id="summary" class="hidden fixed inset-0 bg-black flex flex-col items-center justify-center text-center p-6">
+  <div class="text-3xl font-bold mb-4">Session Complete</div>
+  <div id="summaryText" class="text-lg mb-6"></div>
+  <button onclick="location.reload()" class="bg-white text-black px-6 py-3 rounded">Restart</button>
 </div>
 
 <script>
 let bulls = 0;
 let visits = 0;
-let startTime = null;
-let paused = false;
-let pauseStart = 0;
-let pausedTime = 0;
-let timerInterval;
+let blanks = 0;
+let hatTricks = 0;
+let target = 50;
 
 const statsEl = document.getElementById('stats');
-const timerEl = document.getElementById('timer');
-const bestEl = document.getElementById('best');
+const summary = document.getElementById('summary');
+const summaryText = document.getElementById('summaryText');
 const historyEl = document.getElementById('history');
 
 function updateStats() {
   const bpv = visits ? (bulls / visits).toFixed(2) : "0.00";
-  statsEl.innerText = `${bulls} / ${visits} / ${bpv}`;
+  statsEl.innerText = `${visits} / ${bpv}`;
 }
 
-function startTimer() {
-  startTime = Date.now();
-  timerInterval = setInterval(updateTimer, 100);
-}
-
-function updateTimer() {
-  if (paused) return;
-  const elapsed = (Date.now() - startTime - pausedTime) / 1000;
-  timerEl.innerText = elapsed.toFixed(1) + "s";
-}
-
-function stopTimer() {
-  clearInterval(timerInterval);
-}
-
-function playTick() {
+function playSound(type) {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = 'square';
-  osc.frequency.value = 800;
-  gain.gain.value = 0.1;
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start();
-  osc.stop(ctx.currentTime + 0.03);
+
+  function beep(freq, delay=0) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.frequency.value = freq;
+    osc.type = "square";
+    gain.gain.value = 0.1;
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(ctx.currentTime + delay);
+    osc.stop(ctx.currentTime + delay + 0.04);
+  }
+
+  if (type === 0) beep(200);
+  if (type === 1) beep(800);
+  if (type === 2) { beep(800); beep(800, 0.06); }
+  if (type === 3) { beep(800); beep(800, 0.05); beep(800, 0.1); }
 }
 
-function handleTap(value) {
-  if (paused) return;
+function flash(btn, value) {
+  const colors = {
+    0: "bg-red-600",
+    1: "bg-green-500",
+    2: "bg-blue-500",
+    3: "bg-purple-500"
+  };
 
-  if (!startTime) startTimer();
+  btn.classList.add(colors[value]);
+  setTimeout(() => btn.classList.remove(colors[value]), 80);
+}
 
+function handleTap(value, btn) {
   visits++;
   bulls += value;
 
-  playTick();
-  updateStats();
+  if (value === 0) blanks++;
+  if (value === 3) hatTricks++;
 
-  const target = parseInt(document.getElementById('targetInput').value || 50);
+  playSound(value);
+  flash(btn, value);
+
+  updateStats();
 
   if (bulls >= target) finish();
 }
 
 function finish() {
-  stopTimer();
-
-  const time = parseFloat(timerEl.innerText);
   const bpv = (bulls / visits).toFixed(2);
+  const blankRate = ((blanks / visits) * 100).toFixed(1);
 
-  const run = { bulls, visits, bpv, time, date: new Date().toLocaleTimeString() };
+  const run = {
+    date: new Date().toLocaleString(),
+    bpv,
+    blankRate,
+    hatTricks
+  };
 
-  saveRun(run);
+  const runs = JSON.parse(localStorage.getItem("oche_v2") || "[]");
+  runs.unshift(run);
+  localStorage.setItem("oche_v2", JSON.stringify(runs.slice(0, 50)));
+
   renderHistory();
-  updateBest();
 
-  document.getElementById('summaryText').innerHTML = `
-    Bulls: ${bulls}<br>
-    Visits: ${visits}<br>
+  summaryText.innerHTML = `
     BPV: ${bpv}<br>
-    Time: ${time}s
+    Blank Rate: ${blankRate}%<br>
+    Hat Tricks: ${hatTricks}
   `;
 
-  document.getElementById('summary').classList.remove('hidden');
-}
-
-function saveRun(run) {
-  const runs = JSON.parse(localStorage.getItem('oche_runs') || "[]");
-  runs.unshift(run);
-  localStorage.setItem('oche_runs', JSON.stringify(runs.slice(0, 20)));
+  summary.classList.remove("hidden");
 }
 
 function renderHistory() {
-  const runs = JSON.parse(localStorage.getItem('oche_runs') || "[]");
+  const runs = JSON.parse(localStorage.getItem("oche_v2") || "[]");
 
-  historyEl.innerHTML = runs.map(r =>
-    `<div>${r.time}s • ${r.bpv} BPV</div>`
-  ).join('');
-}
-
-function updateBest() {
-  const runs = JSON.parse(localStorage.getItem('oche_runs') || "[]");
-  if (!runs.length) return;
-
-  const best = runs.reduce((a,b) => a.time < b.time ? a : b);
-  bestEl.innerText = `Best: ${best.time}s`;
+  historyEl.innerHTML = runs.map(r => `
+    <div class="border border-gray-800 p-2 rounded">
+      <div>${r.date}</div>
+      <div>BPV: ${r.bpv} • Blank: ${r.blankRate}% • 3s: ${r.hatTricks}</div>
+    </div>
+  `).join("");
 }
 
 document.querySelectorAll('.btn').forEach(btn => {
-  btn.className = "bg-gray-900 active:bg-white active:text-black text-6xl font-bold rounded-2xl flex items-center justify-center";
-  btn.addEventListener('click', () => handleTap(parseInt(btn.dataset.value)));
+  btn.className = "bg-black border border-white text-6xl font-bold rounded-2xl flex items-center justify-center active:scale-95";
+
+  btn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    handleTap(parseInt(btn.dataset.value), btn);
+  }, { passive: false });
 });
 
-// PAUSE
-document.getElementById('pauseBtn').onclick = () => {
-  if (!startTime) return;
-
-  paused = !paused;
-
-  if (paused) {
-    pauseStart = Date.now();
-    pauseBtn.innerText = "Resume";
-  } else {
-    pausedTime += Date.now() - pauseStart;
-    pauseBtn.innerText = "Pause";
-  }
+// VIEW TOGGLE
+document.getElementById('toggleView').onclick = () => {
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('insights').classList.remove('hidden');
 };
 
-// STOP
-document.getElementById('stopBtn').onclick = () => {
-  if (!startTime) return;
-  finish();
+document.getElementById('backBtn').onclick = () => {
+  document.getElementById('insights').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
 };
 
-// INIT
 updateStats();
 renderHistory();
-updateBest();
 
 // SW
 if ('serviceWorker' in navigator) {
