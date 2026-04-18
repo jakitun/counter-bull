@@ -1,13 +1,10 @@
-const CACHE_NAME = "oche-v2";
-const urlsToCache = [
-  "/",
-  "/index.html",
-  "/manifest.json"
-];
+const CACHE = "oche-v2";
 
 self.addEventListener("install", e => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
+    caches.open(CACHE).then(cache =>
+      cache.addAll(["/", "/index.html", "/manifest.json"])
+    )
   );
 });
 
