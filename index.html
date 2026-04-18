@@ -22,48 +22,46 @@ html, body {
 
 <body class="bg-black text-white">
 
-<div id="app" class="h-full flex flex-col p-4">
+<!-- PRACTICE VIEW -->
+<div id="practice" class="flex flex-col h-screen p-4">
 
-  <!-- TOP BAR -->
-  <div class="flex justify-between items-center mb-3">
-    <div class="text-lg font-bold">Practice</div>
-    <button id="toggleView" class="text-xs opacity-60">Insights</button>
+  <!-- NAV -->
+  <div class="flex justify-between text-sm text-gray-400">
+    <button id="endSession">End Session</button>
+    <button id="goInsights">Insights</button>
   </div>
 
-  <!-- STATS -->
-  <div class="text-center mb-4">
-    <div class="text-sm opacity-60">Target</div>
-    <div id="targetDisplay" class="text-2xl mb-2">50</div>
+  <!-- HERO -->
+  <div class="flex flex-col items-center justify-center flex-1">
+    <div class="text-gray-500 text-sm">Bull / Target</div>
+    <div id="hero" class="text-[6rem] font-bold">0 / 50</div>
+  </div>
 
-    <div class="text-sm opacity-60">Visits / BPV</div>
-    <div id="stats" class="text-3xl font-bold">0 / 0.00</div>
+  <!-- SUB METRICS -->
+  <div class="flex justify-between text-gray-400 mb-2">
+    <div id="visits">Visits 0</div>
+    <div id="bpv">BPV 0.00</div>
   </div>
 
   <!-- GRID -->
-  <div class="grid grid-cols-2 gap-4 flex-1">
-    <button class="btn" data-value="0">0</button>
-    <button class="btn" data-value="1">1</button>
-    <button class="btn" data-value="2">2</button>
-    <button class="btn" data-value="3">3</button>
+  <div class="grid grid-cols-2 gap-4 flex-1 pb-[env(safe-area-inset-bottom)]">
+    <button class="btn" data-v="0">0</button>
+    <button class="btn" data-v="1">1</button>
+    <button class="btn" data-v="2">2</button>
+    <button class="btn" data-v="3">3</button>
   </div>
 
 </div>
 
 <!-- INSIGHTS VIEW -->
-<div id="insights" class="hidden fixed inset-0 bg-black p-4 overflow-y-auto">
-  <div class="flex justify-between mb-4">
-    <div class="text-lg font-bold">Insights</div>
-    <button id="backBtn" class="text-xs opacity-60">Back</button>
+<div id="insights" class="hidden flex flex-col h-screen p-4">
+  <div class="text-sm text-gray-400 mb-3">
+    <button id="back">Back to Practice</button>
   </div>
 
-  <div id="history" class="space-y-2 text-sm"></div>
-</div>
+  <div id="history" class="flex-1 overflow-y-auto space-y-2"></div>
 
-<!-- SUMMARY -->
-<div id="summary" class="hidden fixed inset-0 bg-black flex flex-col items-center justify-center text-center p-6">
-  <div class="text-3xl font-bold mb-4">Session Complete</div>
-  <div id="summaryText" class="text-lg mb-6"></div>
-  <button onclick="location.reload()" class="bg-white text-black px-6 py-3 rounded">Restart</button>
+  <button id="clear" class="mt-4 text-sm text-red-400">Clear History</button>
 </div>
 
 <script>
@@ -73,130 +71,159 @@ let blanks = 0;
 let hatTricks = 0;
 let target = 50;
 
-const statsEl = document.getElementById('stats');
-const summary = document.getElementById('summary');
-const summaryText = document.getElementById('summaryText');
-const historyEl = document.getElementById('history');
+// AUDIO CONTEXT (persistent)
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-function updateStats() {
+const hero = document.getElementById("hero");
+const visitsEl = document.getElementById("visits");
+const bpvEl = document.getElementById("bpv");
+const historyEl = document.getElementById("history");
+
+// UPDATE UI
+function updateUI() {
+  hero.innerText = `${bulls} / ${target}`;
+  visitsEl.innerText = `Visits ${visits}`;
   const bpv = visits ? (bulls / visits).toFixed(2) : "0.00";
-  statsEl.innerText = `${visits} / ${bpv}`;
+  bpvEl.innerText = `BPV ${bpv}`;
 }
 
-function playSound(type) {
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+// AUDIO
+function beep(freq, delay=0) {
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
 
-  function beep(freq, delay=0) {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+  osc.frequency.value = freq;
+  osc.type = "square";
+  gain.gain.value = 0.1;
 
-    osc.frequency.value = freq;
-    osc.type = "square";
-    gain.gain.value = 0.1;
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(ctx.currentTime + delay);
-    osc.stop(ctx.currentTime + delay + 0.04);
-  }
-
-  if (type === 0) beep(200);
-  if (type === 1) beep(800);
-  if (type === 2) { beep(800); beep(800, 0.06); }
-  if (type === 3) { beep(800); beep(800, 0.05); beep(800, 0.1); }
+  osc.start(audioContext.currentTime + delay);
+  osc.stop(audioContext.currentTime + delay + 0.04);
 }
 
-function flash(btn, value) {
-  const colors = {
+function playSound(v) {
+  if (v === 0) beep(200);
+  if (v === 1) beep(400);
+  if (v === 2) { beep(600); beep(600, 0.05); }
+  if (v === 3) { beep(800); beep(800, 0.04); beep(800, 0.08); }
+}
+
+// FLASH
+function flash(btn, v) {
+  const map = {
     0: "bg-red-600",
     1: "bg-green-500",
     2: "bg-blue-500",
     3: "bg-purple-500"
   };
-
-  btn.classList.add(colors[value]);
-  setTimeout(() => btn.classList.remove(colors[value]), 80);
+  btn.classList.add(map[v]);
+  setTimeout(()=>btn.classList.remove(map[v]), 70);
 }
 
-function handleTap(value, btn) {
+// TAP
+function handleTap(v, btn) {
+
+  // iOS AUDIO FIX
+  if (audioContext.state === "suspended") {
+    audioContext.resume();
+  }
+
   visits++;
-  bulls += value;
+  bulls += v;
 
-  if (value === 0) blanks++;
-  if (value === 3) hatTricks++;
+  if (v === 0) blanks++;
+  if (v === 3) hatTricks++;
 
-  playSound(value);
-  flash(btn, value);
+  playSound(v);
+  flash(btn, v);
+  updateUI();
 
-  updateStats();
-
-  if (bulls >= target) finish();
+  if (bulls >= target) endSession();
 }
 
-function finish() {
+// END SESSION
+function endSession() {
+  if (!visits) return;
+
   const bpv = (bulls / visits).toFixed(2);
   const blankRate = ((blanks / visits) * 100).toFixed(1);
 
   const run = {
     date: new Date().toLocaleString(),
+    target,
+    visits,
+    bulls,
     bpv,
     blankRate,
     hatTricks
   };
 
-  const runs = JSON.parse(localStorage.getItem("oche_v2") || "[]");
+  const runs = JSON.parse(localStorage.getItem("oche_sessions") || "[]");
   runs.unshift(run);
-  localStorage.setItem("oche_v2", JSON.stringify(runs.slice(0, 50)));
+  localStorage.setItem("oche_sessions", JSON.stringify(runs.slice(0, 50)));
 
+  reset();
   renderHistory();
-
-  summaryText.innerHTML = `
-    BPV: ${bpv}<br>
-    Blank Rate: ${blankRate}%<br>
-    Hat Tricks: ${hatTricks}
-  `;
-
-  summary.classList.remove("hidden");
 }
 
+// RESET
+function reset() {
+  bulls = 0;
+  visits = 0;
+  blanks = 0;
+  hatTricks = 0;
+  updateUI();
+}
+
+// BUTTON SETUP
+document.querySelectorAll(".btn").forEach(btn => {
+  btn.className = "border border-white/20 rounded-2xl flex items-center justify-center text-6xl font-bold";
+
+  btn.addEventListener("touchstart", e => {
+    e.preventDefault();
+    handleTap(parseInt(btn.dataset.v), btn);
+  }, { passive: false });
+});
+
+// NAV
+document.getElementById("goInsights").onclick = () => {
+  document.getElementById("practice").classList.add("hidden");
+  document.getElementById("insights").classList.remove("hidden");
+};
+
+document.getElementById("back").onclick = () => {
+  document.getElementById("insights").classList.add("hidden");
+  document.getElementById("practice").classList.remove("hidden");
+};
+
+document.getElementById("endSession").onclick = endSession;
+
+// HISTORY
 function renderHistory() {
-  const runs = JSON.parse(localStorage.getItem("oche_v2") || "[]");
+  const runs = JSON.parse(localStorage.getItem("oche_sessions") || "[]");
 
   historyEl.innerHTML = runs.map(r => `
-    <div class="border border-gray-800 p-2 rounded">
-      <div>${r.date}</div>
-      <div>BPV: ${r.bpv} • Blank: ${r.blankRate}% • 3s: ${r.hatTricks}</div>
+    <div class="border border-white/10 p-3 rounded">
+      <div class="text-xs text-gray-500">${r.date}</div>
+      <div class="text-sm">Target ${r.target}</div>
+      <div class="text-sm">BPV ${r.bpv} • Blank ${r.blankRate}% • 3s ${r.hatTricks}</div>
     </div>
   `).join("");
 }
 
-document.querySelectorAll('.btn').forEach(btn => {
-  btn.className = "bg-black border border-white text-6xl font-bold rounded-2xl flex items-center justify-center active:scale-95";
-
-  btn.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    handleTap(parseInt(btn.dataset.value), btn);
-  }, { passive: false });
-});
-
-// VIEW TOGGLE
-document.getElementById('toggleView').onclick = () => {
-  document.getElementById('app').classList.add('hidden');
-  document.getElementById('insights').classList.remove('hidden');
+document.getElementById("clear").onclick = () => {
+  localStorage.removeItem("oche_sessions");
+  renderHistory();
 };
 
-document.getElementById('backBtn').onclick = () => {
-  document.getElementById('insights').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-};
-
-updateStats();
+updateUI();
 renderHistory();
 
 // SW
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
 }
 </script>
 
