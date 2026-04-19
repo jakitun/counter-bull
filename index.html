@@ -19,17 +19,28 @@
       user-select: none;
       overflow: hidden;
     }
+    
+    /* Input Fixes to prevent iOS cropping */
     input::-webkit-outer-spin-button,
     input::-webkit-inner-spin-button {
       -webkit-appearance: none;
       margin: 0;
     }
-    input { outline: none; }
-    /* Visual Haptic Colors */
-    .btn-0:active { background-color: #ef4444; } /* Red */
-    .btn-1:active { background-color: #22c55e; } /* Green */
-    .btn-2:active { background-color: #3b82f6; } /* Blue */
-    .btn-3:active { background-color: #a855f7; } /* Purple */
+    input[type="number"] {
+      height: 1.2em; 
+      line-height: 1;
+      width: 2.5ch;
+      outline: none;
+      background: transparent;
+    }
+
+    /* Native Color Flash Overrides */
+    .btn-target { transition: background-color 0.15s ease-out; } 
+    .flash-0 { background-color: #ef4444 !important; transition: none !important; } 
+    .flash-1 { background-color: #22c55e !important; transition: none !important; } 
+    .flash-2 { background-color: #3b82f6 !important; transition: none !important; } 
+    .flash-3 { background-color: #a855f7 !important; transition: none !important; }
+
     /* Insights Screen Scrolling */
     .scrollable { touch-action: auto; overflow-y: auto; overscroll-behavior: auto; }
   </style>
@@ -80,28 +91,49 @@
     const getBlankRate = () => visits.length ? Math.round((visits.filter(v => v === 0).length / visits.length) * 100) : 0;
     const getHatTricks = () => visits.filter(v => v === 3).length;
 
+    // --- UI FAST UPDATER ---
+    // Updates only the numbers, avoiding full DOM re-renders so color flashes work perfectly
+    function updateStats() {
+      const scoreEl = document.getElementById('score-display');
+      const visitsEl = document.getElementById('visits-display');
+      const bpvEl = document.getElementById('bpv-display');
+      const undoBtn = document.getElementById('undo-btn-container');
+      
+      if (scoreEl) scoreEl.innerText = getTotalBulls();
+      if (visitsEl) visitsEl.innerText = visits.length;
+      if (bpvEl) bpvEl.innerText = getBPV();
+      if (undoBtn) undoBtn.innerHTML = visits.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : '';
+    }
+
     // --- ACTIONS ---
-    window.tapButton = (val) => {
+    window.tapButton = (val, btnElement) => {
       const now = Date.now();
       if (now - lastTapTime < 50) return; // 50ms Ghost Tap Debounce
       lastTapTime = now;
       initAudio();
       playSound(val);
+
+      // Trigger Visual Flash
+      if (btnElement) {
+        btnElement.classList.add(`flash-${val}`);
+        setTimeout(() => btnElement.classList.remove(`flash-${val}`), 100);
+      }
+
       visits.push(val);
+      updateStats(); // Update numbers instantly
       
       if (getTotalBulls() >= target) {
-        endSession();
-      } else {
-        render();
+        // Tiny 150ms delay so you see the final score and flash before the screen jumps
+        setTimeout(endSession, 150); 
       }
     };
 
     window.undoLast = () => {
       if (visits.length > 0) {
         initAudio();
-        beep(150); // Low undo sound
+        beep(150); 
         visits.pop();
-        render();
+        updateStats();
       }
     };
 
@@ -110,7 +142,6 @@
       if (val > 0) { 
         target = val; 
         localStorage.setItem('defaultTarget', target); 
-        render(); 
       }
     };
 
@@ -146,7 +177,7 @@
       }
     };
 
-    // --- UI RENDERING ---
+    // --- MAIN SCREEN RENDERING ---
     const app = document.getElementById('app');
     
     function render() {
@@ -160,25 +191,25 @@
           <div class="flex-none flex flex-col items-center justify-center py-4">
             <div class="text-gray-500 text-sm mb-1 uppercase tracking-widest">Bull / Target</div>
             <div class="text-[6rem] font-bold leading-none flex items-center justify-center">
-              <span>${getTotalBulls()}</span>
+              <span id="score-display">${getTotalBulls()}</span>
               <span class="mx-3 text-gray-700">/</span>
-              <input type="number" value="${target}" onchange="updateTarget(event)" class="w-[1.2em] bg-transparent text-white border-none text-center p-0 m-0" />
+              <input type="number" value="${target}" onchange="updateTarget(event)" class="text-center p-0 m-0 text-white" />
             </div>
           </div>
           
           <div class="flex justify-between items-end px-6 pb-4 text-gray-500">
-            <div>Visits <span class="text-white text-3xl ml-2 font-bold">${visits.length}</span></div>
+            <div>Visits <span id="visits-display" class="text-white text-3xl ml-2 font-bold">${visits.length}</span></div>
             <div class="flex items-end gap-6">
-              ${visits.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : ''}
-              <div>BPV <span class="text-white text-3xl ml-2 font-bold">${getBPV()}</span></div>
+              <div id="undo-btn-container">${visits.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : ''}</div>
+              <div>BPV <span id="bpv-display" class="text-white text-3xl ml-2 font-bold">${getBPV()}</span></div>
             </div>
           </div>
           
           <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-4 px-4 pb-6">
-            <button ontouchstart="tapButton(0)" class="btn-0 border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold transition-colors duration-75">0</button>
-            <button ontouchstart="tapButton(1)" class="btn-1 border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold transition-colors duration-75">1</button>
-            <button ontouchstart="tapButton(2)" class="btn-2 border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold transition-colors duration-75">2</button>
-            <button ontouchstart="tapButton(3)" class="btn-3 border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold transition-colors duration-75">3</button>
+            <button ontouchstart="tapButton(0, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">0</button>
+            <button ontouchstart="tapButton(1, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">1</button>
+            <button ontouchstart="tapButton(2, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">2</button>
+            <button ontouchstart="tapButton(3, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">3</button>
           </div>
         `;
       } 
