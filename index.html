@@ -4,71 +4,232 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
   <title>Oche Tracker</title>
-  <!-- PWA manifest for installability -->
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-
   <style>
-    /* iOS fixes: disable overscroll and text selection */
     html, body {
       height: 100%;
-      overscroll-behavior: none; /* no rubber-band scroll【23†L324-L327】 */
+      overscroll-behavior: none;
       margin: 0;
-    }
-    body {
-      touch-action: none;     /* no scrolling/pinch-zoom */
-      user-select: none;      /* no text selection */
-      overflow: hidden;       /* lock viewport (no bounce)【21†L1567-L1570】 */
       background: black;
       color: white;
+      touch-action: none;
+      user-select: none;
+      overflow: hidden;
     }
-    /* Remove number input arrows */
     input::-webkit-outer-spin-button,
     input::-webkit-inner-spin-button {
       -webkit-appearance: none;
       margin: 0;
     }
-    input {
-      line-height: 1; /* avoid extra spacing around text */
-      height: auto;
-      outline: none;
-    }
-    /* Score pop animation */
-    .score-pop {
-      animation: pop 0.18s ease;
-    }
-    @keyframes pop {
-      0% { transform: scale(1); }
-      40% { transform: scale(1.08); }
-      100% { transform: scale(1); }
-    }
+    input { outline: none; }
+    /* Visual Haptic Colors */
+    .btn-0:active { background-color: #ef4444; } /* Red */
+    .btn-1:active { background-color: #22c55e; } /* Green */
+    .btn-2:active { background-color: #3b82f6; } /* Blue */
+    .btn-3:active { background-color: #a855f7; } /* Purple */
+    /* Insights Screen Scrolling */
+    .scrollable { touch-action: auto; overflow-y: auto; overscroll-behavior: auto; }
   </style>
 </head>
-
 <body>
-  <div id="app" class="h-screen flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"></div>
+  <div id="app" class="h-full flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"></div>
 
-  html
+  <script>
+    // --- AUDIO SYSTEM ---
+    let audioCtx;
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+    
+    function beep(freq, delay = 0) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const t = audioCtx.currentTime + delay;
+      osc.start(t);
+      gain.gain.setValueAtTime(1, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      osc.stop(t + 0.1);
+    }
+
+    function playSound(v) {
+      if (v === 0) beep(200);
+      if (v === 1) beep(300);
+      if (v === 2) { beep(400); beep(400, 0.15); }
+      if (v === 3) { beep(500); beep(500, 0.10); beep(500, 0.20); }
+    }
+
+    // --- STATE MANAGEMENT ---
+    let currentView = 'practice';
+    let visits = [];
+    let target = parseInt(localStorage.getItem('defaultTarget')) || 50;
+    let history = JSON.parse(localStorage.getItem('ocheHistory')) || [];
+    let lastTapTime = 0;
+
+    // --- METRICS CALCULATIONS ---
+    const getTotalBulls = () => visits.reduce((a, b) => a + b, 0);
+    const getBPV = () => visits.length ? (getTotalBulls() / visits.length).toFixed(2) : "0.00";
+    const getBlankRate = () => visits.length ? Math.round((visits.filter(v => v === 0).length / visits.length) * 100) : 0;
+    const getHatTricks = () => visits.filter(v => v === 3).length;
+
+    // --- ACTIONS ---
+    window.tapButton = (val) => {
+      const now = Date.now();
+      if (now - lastTapTime < 50) return; // 50ms Ghost Tap Debounce
+      lastTapTime = now;
+      initAudio();
+      playSound(val);
+      visits.push(val);
+      
+      if (getTotalBulls() >= target) {
+        endSession();
+      } else {
+        render();
+      }
+    };
+
+    window.undoLast = () => {
+      if (visits.length > 0) {
+        initAudio();
+        beep(150); // Low undo sound
+        visits.pop();
+        render();
+      }
+    };
+
+    window.updateTarget = (e) => {
+      let val = parseInt(e.target.value);
+      if (val > 0) { 
+        target = val; 
+        localStorage.setItem('defaultTarget', target); 
+        render(); 
+      }
+    };
+
+    window.endSession = () => {
+      if (visits.length > 0) {
+        const session = {
+          date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+          target, bulls: getTotalBulls(), visits: visits.length, bpv: getBPV(), blankRate: getBlankRate(), hatTricks: getHatTricks()
+        };
+        history.unshift(session);
+        localStorage.setItem('ocheHistory', JSON.stringify(history));
+      }
+      currentView = 'summary';
+      render();
+    };
+
+    window.restartSession = () => {
+      visits = [];
+      currentView = 'practice';
+      render();
+    };
+
+    window.toggleInsights = () => {
+      currentView = currentView === 'insights' ? 'practice' : 'insights';
+      render();
+    };
+
+    window.clearHistory = () => {
+      if (confirm('Clear all history?')) { 
+        history = []; 
+        localStorage.removeItem('ocheHistory'); 
+        render(); 
+      }
+    };
+
+    // --- UI RENDERING ---
+    const app = document.getElementById('app');
+    
+    function render() {
+      if (currentView === 'practice') {
         app.innerHTML = `
-        <div class="p-6 flex flex-col h-full justify-center items-center text-center">
-          <div class="text-xl mb-4">Session Summary</div>
-          <div class="space-y-2 text-gray-300">
-            <div>${date}</div>
-            <div>Bulls: ${bulls}</div>
-            <div>Visits: ${visits.length}</div>
-            <div>BPV: ${bpv()}</div>
-            <div>Blank Rate: ${blankRate()}%</div>
-            <div>Hat Tricks: ${hatTricks()}</div>
+          <div class="flex justify-between px-6 py-4 text-gray-500 font-medium">
+            <button onclick="endSession()" class="active:text-white">End Session</button>
+            <button onclick="toggleInsights()" class="active:text-white">Insights</button>
           </div>
-          <button id="restartBtn"
-            class="mt-8 bg-white text-black px-6 py-4 rounded-xl text-lg">
-            Restart Session
-          </button>
-        </div>
-      `;
+          
+          <div class="flex-none flex flex-col items-center justify-center py-4">
+            <div class="text-gray-500 text-sm mb-1 uppercase tracking-widest">Bull / Target</div>
+            <div class="text-[6rem] font-bold leading-none flex items-center justify-center">
+              <span>${getTotalBulls()}</span>
+              <span class="mx-3 text-gray-700">/</span>
+              <input type="number" value="${target}" onchange="updateTarget(event)" class="w-[1.2em] bg-transparent text-white border-none text-center p-0 m-0" />
+            </div>
+          </div>
+          
+          <div class="flex justify-between items-end px-6 pb-4 text-gray-500">
+            <div>Visits <span class="text-white text-3xl ml-2 font-bold">${visits.length}</span></div>
+            <div class="flex items-end gap-6">
+              ${visits.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : ''}
+              <div>BPV <span class="text-white text-3xl ml-2 font-bold">${getBPV()}</span></div>
+            </div>
+          </div>
+          
+          <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-4 px-4 pb-6">
+            <button ontouchstart="tapButton(0)" class="btn-0 border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold transition-colors duration-75">0</button>
+            <button ontouchstart="tapButton(1)" class="btn-1 border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold transition-colors duration-75">1</button>
+            <button ontouchstart="tapButton(2)" class="btn-2 border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold transition-colors duration-75">2</button>
+            <button ontouchstart="tapButton(3)" class="btn-3 border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold transition-colors duration-75">3</button>
+          </div>
+        `;
+      } 
+      else if (currentView === 'summary') {
+        app.innerHTML = `
+          <div class="flex-1 flex flex-col items-center justify-center p-8 text-center bg-black">
+            <h1 class="text-4xl font-bold mb-10 text-white">Session Ended</h1>
+            <div class="space-y-6 text-xl text-gray-400 w-full max-w-xs mb-12">
+              <div class="flex justify-between border-b border-gray-800 pb-2"><span>Bulls:</span> <span class="text-white font-bold">${getTotalBulls()} / ${target}</span></div>
+              <div class="flex justify-between border-b border-gray-800 pb-2"><span>Visits:</span> <span class="text-white font-bold">${visits.length}</span></div>
+              <div class="flex justify-between border-b border-gray-800 pb-2"><span>BPV:</span> <span class="text-white font-bold">${getBPV()}</span></div>
+              <div class="flex justify-between border-b border-gray-800 pb-2"><span>Blank Rate:</span> <span class="text-white font-bold">${getBlankRate()}%</span></div>
+              <div class="flex justify-between border-b border-gray-800 pb-2"><span>Hat Tricks:</span> <span class="text-white font-bold">${getHatTricks()}</span></div>
+            </div>
+            <button onclick="restartSession()" class="w-full max-w-xs bg-white text-black font-bold py-5 rounded-2xl text-2xl active:bg-gray-300 transition-colors">Restart Practice</button>
+          </div>
+        `;
+      } 
+      else if (currentView === 'insights') {
+        app.innerHTML = `
+          <div class="flex justify-between items-center px-6 py-5 border-b border-gray-800 bg-black z-10">
+            <button onclick="toggleInsights()" class="text-blue-500 font-medium text-lg active:text-blue-400">&larr; Back</button>
+            <span class="font-bold text-xl text-white">Insights</span>
+            <div class="w-12"></div>
+          </div>
+          <div class="flex-1 scrollable p-4 space-y-4">
+            ${history.length === 0 ? '<div class="text-center text-gray-500 mt-12 text-lg">No sessions recorded yet.</div>' :
+              history.map(h => `
+                <div class="bg-gray-900 rounded-2xl p-5 border border-gray-800">
+                  <div class="text-sm text-gray-500 mb-3">${h.date}</div>
+                  <div class="flex justify-between items-end">
+                    <div>
+                      <div class="text-4xl font-bold text-white">${h.bpv} <span class="text-sm font-normal text-gray-500">BPV</span></div>
+                      <div class="text-sm text-gray-400 mt-2">${h.bulls}/${h.target} Bulls in ${h.visits} visits</div>
+                    </div>
+                    <div class="text-right text-sm text-gray-400 space-y-1">
+                      <div>Blanks: <span class="text-white font-medium">${h.blankRate}%</span></div>
+                      <div>Hats: <span class="text-white font-medium">${h.hatTricks}</span></div>
+                    </div>
+                  </div>
+                </div>
+              `).join('')
+            }
+            ${history.length > 0 ? `<button onclick="clearHistory()" class="w-full mt-8 py-4 text-red-500 font-medium text-lg active:text-red-400">Clear All History</button>` : ''}
+          </div>
+        `;
+      }
+    }
+
+    // Initialize app
+    render();
+  </script>
 </body>
 </html>
