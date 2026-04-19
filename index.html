@@ -1,304 +1,273 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>Oche Tracker</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <title>Oche Tracker</title>
+  <!-- PWA manifest for installability -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-<script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-<style>
-  body {
-    touch-action: none;
-    user-select: none;
-    overflow: hidden;
-    background: black;
-    color: white;
-  }
-
-  input {
-    line-height: 1;
-    height: auto;
-  }
-
-  input::-webkit-outer-spin-button,
-  input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  .score-pop {
-    animation: pop 0.18s ease;
-  }
-
-  @keyframes pop {
-    0% { transform: scale(1); }
-    40% { transform: scale(1.08); }
-    100% { transform: scale(1); }
-  }
-</style>
+  <style>
+    /* iOS fixes: disable overscroll and text selection */
+    html, body {
+      height: 100%;
+      overscroll-behavior: none; /* no rubber-band scroll【23†L324-L327】 */
+      margin: 0;
+    }
+    body {
+      touch-action: none;     /* no scrolling/pinch-zoom */
+      user-select: none;      /* no text selection */
+      overflow: hidden;       /* lock viewport (no bounce)【21†L1567-L1570】 */
+      background: black;
+      color: white;
+    }
+    /* Remove number input arrows */
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input {
+      line-height: 1; /* avoid extra spacing around text */
+      height: auto;
+      outline: none;
+    }
+    /* Score pop animation */
+    .score-pop {
+      animation: pop 0.18s ease;
+    }
+    @keyframes pop {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+  </style>
 </head>
 
 <body>
+  <div id="app" class="h-screen flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"></div>
 
-<div id="app" class="h-screen flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"></div>
+  <script>
+    /* ===== STATE ===== */
+    let visits = [];
+    let bulls = 0;
+    let target = Number(localStorage.getItem('defaultTarget')) || 50;
+    let lastTap = 0;
+    const app = document.getElementById('app');
 
-<script>
-let visits = [];
-let bulls = 0;
-let target = Number(localStorage.getItem('defaultTarget')) || 50;
-let lastTap = 0;
+    /* ===== AUDIO SETUP ===== */
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function beep(freq, offset=0) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      const t = audioCtx.currentTime + offset;
+      osc.start(t);
+      osc.stop(t + 0.08);
+    }
 
-const app = document.getElementById('app');
+    /* ===== STAT HELPERS ===== */
+    const bpv = () => visits.length ? (bulls / visits.length).toFixed(2) : 0;
+    const blankRate = () => visits.length ? ((visits.filter(v=>v===0).length / visits.length)*100).toFixed(1) : 0;
+    const hatTricks = () => visits.filter(v=>v===3).length;
 
-/* AUDIO */
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    /* ===== RENDER PRACTICE VIEW ===== */
+    function renderPractice() {
+      app.innerHTML = `
+        <div class="flex justify-between px-4 py-2 text-gray-400 text-sm">
+          <button id="endBtn">End Session</button>
+          <button id="insightsBtn">Insights</button>
+        </div>
+        <div class="flex-1 flex flex-col justify-center items-center">
+          <div class="text-gray-500 mb-3">Bull/Target</div>
+          <div class="flex items-end justify-center text-[6rem] font-bold leading-none">
+            <span id="bulls">${bulls}</span>
+            <span class="mx-3 translate-y-[8px]">/</span>
+            <span id="targetDisplay" class="cursor-pointer">${target}</span>
+            <input id="targetInput" type="number" value="${target}"
+              class="hidden bg-transparent text-white text-[6rem] w-[6rem] text-center outline-none appearance-none" />
+          </div>
+        </div>
+        <div class="flex justify-between px-6 text-sm text-gray-400 mb-2">
+          <div>Visits ${visits.length}</div>
+          <div>BPV ${bpv()}</div>
+          <button id="undoBtn" class="text-gray-500">Undo</button>
+        </div>
+        <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-4 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+          ${[0,1,2,3].map(v => \`
+            <button data-val="\${v}"
+              class="border border-white/20 rounded-xl h-full w-full flex items-center justify-center text-4xl">
+              \${v}
+            </button>
+          \`).join('')}
+        </div>
+      `;
+      bindPractice();
+    }
 
-function beep(freq, offset=0) {
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.frequency.value = freq;
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
+    function bindPractice() {
+      /* Tap-to-edit target (display <span> <-> hidden <input>) */
+      const display = document.getElementById('targetDisplay');
+      const input = document.getElementById('targetInput');
+      display.addEventListener('touchstart', () => {
+        display.classList.add('hidden');
+        input.classList.remove('hidden');
+        input.focus();
+        input.select();
+      });
+      input.addEventListener('blur', () => {
+        target = Number(input.value) || 50;
+        localStorage.setItem('defaultTarget', target);
+        display.textContent = target;
+        input.classList.add('hidden');
+        display.classList.remove('hidden');
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') input.blur();
+      });
 
-  const t = audioCtx.currentTime + offset;
-  osc.start(t);
-  osc.stop(t + 0.08);
-}
+      document.getElementById('endBtn').onclick = renderSummary;
+      document.getElementById('insightsBtn').onclick = renderInsights;
 
-/* HELPERS */
-const bpv = () => visits.length ? (bulls / visits.length).toFixed(2) : 0;
-const blankRate = () => visits.length ? ((visits.filter(v=>v===0).length / visits.length)*100).toFixed(1) : 0;
-const hatTricks = () => visits.filter(v=>v===3).length;
+      document.getElementById('undoBtn').onclick = () => {
+        if (!visits.length) return;
+        const last = visits.pop();
+        bulls -= last;
+        if (audioCtx.state === 'suspended') audioCtx.resume(); // iOS: resume AudioContext【7†L194-L202】
+        beep(150);
+        renderPractice();
+      };
 
-/* PRACTICE */
-function renderPractice() {
-  app.innerHTML = `
-  <div class="flex justify-between px-4 py-2 text-gray-400 text-sm">
-    <button id="endBtn">End Session</button>
-    <button id="insightsBtn">Insights</button>
-  </div>
+      document.querySelectorAll('[data-val]').forEach(btn => {
+        btn.addEventListener('touchstart', () => {
+          const now = Date.now();
+          if (now - lastTap < 50) return; // ignore ghost taps (<50ms)
+          lastTap = now;
 
-  <div class="flex-1 flex flex-col justify-center items-center">
-    <div class="text-gray-500 mb-3">Bull/Target</div>
+          if (audioCtx.state === 'suspended') audioCtx.resume(); // iOS audio unlock
+          const val = Number(btn.dataset.val);
 
-<div class="flex flex-col items-center">
-  <div class="text-gray-500 mb-3">Bull/Target</div>
+          // Visual flash
+          const colors = ['bg-red-500','bg-green-500','bg-blue-500','bg-purple-500'];
+          btn.classList.add(colors[val]);
+          setTimeout(()=>btn.classList.remove(colors[val]), 100);
 
-  <div class="flex items-end justify-center text-[6rem] font-bold leading-none">
-    
-    <span id="bulls">${bulls}</span>
+          // Schedule beeps
+          if (val===0) beep(200);
+          if (val===1) beep(300);
+          if (val===2){ beep(400,0); beep(400,0.15); }
+          if (val===3){ beep(500,0); beep(500,0.10); beep(500,0.20); }
 
-    <span class="mx-3 translate-y-[8px]">/</span>
+          visits.push(val);
+          bulls += val;
 
-    <span id="targetDisplay" class="cursor-pointer">${target}</span>
+          // Score pop animation
+          const score = document.getElementById('bulls');
+          score.classList.remove('score-pop');
+          void score.offsetWidth;
+          score.classList.add('score-pop');
 
-    <input id="targetInput" type="number"
-      value="${target}"
-      class="hidden bg-transparent text-white text-[6rem] w-[6rem] text-center outline-none appearance-none" />
+          if (bulls >= target) renderSummary();
+          else renderPractice();
+        }, { passive:true });
+      });
+    }
 
-  </div>
-</div>
+    /* ===== SUMMARY VIEW ===== */
+    function renderSummary() {
+      const date = new Date().toLocaleString();
+      app.innerHTML = \`
+        <div class="p-6 flex flex-col h-full justify-center items-center text-center">
+          <div class="text-xl mb-4">Session Summary</div>
+          <div class="space-y-2 text-gray-300">
+            <div>\${date}</div>
+            <div>Bulls: \${bulls}</div>
+            <div>Visits: \${visits.length}</div>
+            <div>BPV: \${bpv()}</div>
+            <div>Blank Rate: \${blankRate()}%</div>
+            <div>Hat Tricks: \${hatTricks()}</div>
+          </div>
+          <button id="restartBtn"
+            class="mt-8 bg-white text-black px-6 py-4 rounded-xl text-lg">
+            Restart Session
+          </button>
+        </div>
+      \`;
+      document.getElementById('restartBtn').onclick = () => {
+        saveSession();
+        visits = [];
+        bulls = 0;
+        renderPractice();
+      };
+    }
 
-  <div class="flex justify-between px-6 text-sm text-gray-400 mb-2">
-    <div>Visits ${visits.length}</div>
-    <div>BPV ${bpv()}</div>
-    <button id="undoBtn" class="text-gray-500">Undo</button>
-  </div>
+    /* ===== INSIGHTS VIEW ===== */
+    function renderInsights() {
+      const data = JSON.parse(localStorage.getItem('sessions') || '[]');
+      app.innerHTML = \`
+        <div class="flex justify-between px-4 py-2 text-gray-400 text-sm">
+          <button id="backBtn">Back</button>
+          <button id="clearBtn">Clear History</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+          \${data.map(s => \`
+            <div class="border border-white/10 p-4 rounded-xl text-sm">
+              <div>\${s.date}</div>
+              <div>Target: \${s.target}</div>
+              <div>BPV: \${s.bpv}</div>
+              <div>Blank: \${s.blank}%</div>
+              <div>Hat Tricks: \${s.hat}</div>
+            </div>
+          \`).join('') || '<div class="text-gray-500">No sessions</div>'}
+        </div>
+      \`;
+      app.querySelector('.overflow-y-auto').style.overflowY = "auto";
+      document.getElementById('backBtn').onclick = renderPractice;
+      document.getElementById('clearBtn').onclick = () => {
+        localStorage.removeItem('sessions');
+        renderInsights();
+      };
+    }
 
-  <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-4 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
-    ${[0,1,2,3].map(v => `
-      <button data-val="${v}" 
-      class="border border-white/20 rounded-xl h-full w-full flex items-center justify-center text-4xl">
-        ${v}
-      </button>
-    `).join('')}
-  </div>
-  `;
+    /* ===== STORAGE ===== */
+    function saveSession() {
+      const data = JSON.parse(localStorage.getItem('sessions') || '[]');
+      data.unshift({
+        date: new Date().toLocaleString(),
+        target,
+        bpv: bpv(),
+        blank: blankRate(),
+        hat: hatTricks()
+      });
+      localStorage.setItem('sessions', JSON.stringify(data));
+    }
 
-  bindPractice();
-}
+    /* ===== SERVICE WORKER (PWA) ===== */
+    if ('serviceWorker' in navigator) {
+      const swCode = \`
+        self.addEventListener('install', e => {
+          e.waitUntil(caches.open('oche-cache').then(cache =>
+            cache.addAll(['./'])
+          ));
+        });
+        self.addEventListener('fetch', e => {
+          e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+        });
+      \`;
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      navigator.serviceWorker.register(URL.createObjectURL(blob));
+    }
 
-function bindPractice() {
-
-  document.getElementById('targetInput').addEventListener('change', e => {
-    target = Number(e.target.value) || 50;
-    localStorage.setItem('defaultTarget', target);
-  });
-
-  document.getElementById('endBtn').onclick = renderSummary;
-  document.getElementById('insightsBtn').onclick = renderInsights;
-
-  document.getElementById('undoBtn').onclick = () => {
-    if (!visits.length) return;
-    const last = visits.pop();
-    bulls -= last;
-
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    beep(150);
-
+    /* ===== INIT ===== */
     renderPractice();
-  };
-
-  document.querySelectorAll('[data-val]').forEach(btn => {
-    btn.addEventListener('touchstart', () => {
-
-      const now = Date.now();
-      if (now - lastTap < 50) return;
-      lastTap = now;
-
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-
-      const val = Number(btn.dataset.val);
-
-      // color flash
-      const colors = ['bg-red-500','bg-green-500','bg-blue-500','bg-purple-500'];
-      btn.classList.add(colors[val]);
-      setTimeout(()=>btn.classList.remove(colors[val]),100);
-
-      // audio
-      if (val===0) beep(200);
-      if (val===1) beep(300);
-      if (val===2){ beep(400,0); beep(400,0.15); }
-      if (val===3){ beep(500,0); beep(500,0.10); beep(500,0.20); }
-
-      visits.push(val);
-      bulls += val;
-
-      // score pop animation
-      const score = document.getElementById('bulls');
-      score.classList.remove('score-pop');
-      void score.offsetWidth;
-      score.classList.add('score-pop');
-
-      if (bulls >= target) renderSummary();
-      else renderPractice();
-
-    }, { passive:true });
-  });
-}
-
-/* SUMMARY */
-function renderSummary() {
-  app.innerHTML = `
-  <div class="p-6 flex flex-col h-full justify-center items-center text-center">
-    <div class="text-xl mb-4">Session Summary</div>
-
-    <div class="space-y-2 text-gray-300">
-      <div>${new Date().toLocaleString()}</div>
-      <div>Bulls: ${bulls}</div>
-      <div>Visits: ${visits.length}</div>
-      <div>BPV: ${bpv()}</div>
-      <div>Blank Rate: ${blankRate()}%</div>
-      <div>Hat Tricks: ${hatTricks()}</div>
-    </div>
-
-    <button id="restartBtn"
-      class="mt-8 bg-white text-black px-6 py-4 rounded-xl text-lg">
-      Restart Session
-    </button>
-  </div>
-  `;
-
-  document.getElementById('restartBtn').onclick = () => {
-    saveSession();
-    visits = [];
-    bulls = 0;
-    renderPractice();
-  };
-}
-
-/* INSIGHTS */
-function renderInsights() {
-  const data = JSON.parse(localStorage.getItem('sessions') || '[]');
-
-  app.innerHTML = `
-  <div class="flex justify-between px-4 py-2 text-gray-400 text-sm">
-    <button id="backBtn">Back</button>
-    <button id="clearBtn">Clear History</button>
-  </div>
-
-  <div class="flex-1 overflow-y-auto p-4 space-y-4">
-    ${data.map(s => `
-      <div class="border border-white/10 p-4 rounded-xl text-sm">
-        <div>${s.date}</div>
-        <div>Target: ${s.target}</div>
-        <div>BPV: ${s.bpv}</div>
-        <div>Blank: ${s.blank}%</div>
-        <div>Hat Tricks: ${s.hat}</div>
-      </div>
-    `).join('') || '<div class="text-gray-500">No sessions</div>'}
-  </div>
-  `;
-
-  app.querySelector('.overflow-y-auto').style.overflowY = "auto";
-
-  document.getElementById('backBtn').onclick = renderPractice;
-  document.getElementById('clearBtn').onclick = () => {
-    localStorage.removeItem('sessions');
-    renderInsights();
-  };
-}
-
-/* STORAGE */
-function saveSession() {
-  const data = JSON.parse(localStorage.getItem('sessions') || '[]');
-
-  data.unshift({
-    date: new Date().toLocaleString(),
-    target,
-    bpv: bpv(),
-    blank: blankRate(),
-    hat: hatTricks()
-  });
-
-  localStorage.setItem('sessions', JSON.stringify(data));
-}
-
-const display = document.getElementById('targetDisplay');
-const input = document.getElementById('targetInput');
-
-// tap to edit
-display.addEventListener('touchstart', () => {
-  display.classList.add('hidden');
-  input.classList.remove('hidden');
-  input.focus();
-  input.select();
-});
-
-// save on blur
-input.addEventListener('blur', () => {
-  target = Number(input.value) || 50;
-  localStorage.setItem('defaultTarget', target);
-
-  display.textContent = target;
-
-  input.classList.add('hidden');
-  display.classList.remove('hidden');
-});
-
-// optional: press enter to confirm
-input.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') input.blur();
-});
-
-/* PWA */
-if ('serviceWorker' in navigator) {
-  const code = `
-    self.addEventListener('install', e => {
-      e.waitUntil(caches.open('oche').then(c => c.addAll(['./'])));
-    });
-    self.addEventListener('fetch', e => {
-      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
-    });
-  `;
-  const blob = new Blob([code], { type:'text/javascript' });
-  navigator.serviceWorker.register(URL.createObjectURL(blob));
-}
-
-/* INIT */
-renderPractice();
-
-</script>
+  </script>
 </body>
 </html>
