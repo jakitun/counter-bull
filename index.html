@@ -69,10 +69,10 @@
     .stat-label {
       font-family: 'Rajdhani', sans-serif;
       font-weight: 600;
-      font-size: 0.65rem;
+      font-size: 0.72rem;
       letter-spacing: 0.14em;
       text-transform: uppercase;
-      color: #3f3f3f;
+      color: #6b6b6b;
     }
     .stat-value {
       font-family: 'Bebas Neue', sans-serif;
@@ -248,12 +248,18 @@
       gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
       osc.stop(t + duration);
     }
-    function playSound(v) {
+    function playRewardSound() {
+      // Ascending three-note fanfare
+      beep(440, 0.00, 0.12);
+      beep(554, 0.15, 0.12);
+      beep(659, 0.30, 0.22);
+      beep(880, 0.52, 0.35);
+    }
       if (v === 0) beep(200);
       if (v === 1) beep(300);
       if (v === 2) { beep(400); beep(400, 0.15); }
       if (v === 3) { beep(500); beep(500, 0.10); beep(500, 0.20); }
-    }
+    
     function playCricketSound(marks) {
       if (marks === 0) beep(200);
       else if (marks <= 3) beep(300 + marks * 50);
@@ -374,8 +380,9 @@
         localStorage.setItem('ocheCricketHistory', JSON.stringify(cricketHistory));
       }
       sessionStartTime = null;
-      currentView = 'summary';
-      render();
+      initAudio();
+      playRewardSound();
+      setTimeout(() => { currentView = 'summary'; render(); }, 750);
     };
 
     window.restartSession = () => { rounds=[]; cricketRounds=[]; sessionStartTime=null; currentView='practice'; render(); };
