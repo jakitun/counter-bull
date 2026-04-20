@@ -83,9 +83,9 @@
     let visits = [];
     let target = parseInt(localStorage.getItem('defaultTarget')) || 50;
     let history = JSON.parse(localStorage.getItem('ocheHistory')) || [];
-    let metricMode = parseInt(localStorage.getItem('metricMode')) || 0; // 0=BPR, 1=BPD, 2=Hidden
+    let metricMode = parseInt(localStorage.getItem('metricMode')) || 0; 
     let lastTapTime = 0;
-    let sessionStartTime = null; // Silent Timer
+    let sessionStartTime = null; 
 
     // --- METRICS CALCULATIONS ---
     const getTotalBulls = () => visits.reduce((a, b) => a + b, 0);
@@ -121,7 +121,6 @@
           metricValueEl.innerText = getBPD();
           metricValueEl.className = "text-white text-3xl ml-2 font-bold";
         } else {
-          // The Clean Hidden Mode
           metricLabelEl.innerText = "";
           metricValueEl.innerText = "—";
           metricValueEl.className = "text-gray-700 text-3xl ml-2 font-bold";
@@ -138,10 +137,9 @@
 
     window.tapButton = (val, btnElement) => {
       const now = Date.now();
-      if (now - lastTapTime < 50) return; // Ghost Tap Debounce
+      if (now - lastTapTime < 50) return; 
       lastTapTime = now;
       
-      // Start silent timer on first tap
       if (!sessionStartTime) sessionStartTime = Date.now();
 
       initAudio();
@@ -163,7 +161,7 @@
         initAudio();
         beep(150); 
         visits.pop();
-        if (visits.length === 0) sessionStartTime = null; // Reset timer if undoing first throw
+        if (visits.length === 0) sessionStartTime = null; 
         updateStats();
       }
     };
@@ -185,13 +183,14 @@
           date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
           duration: durationStr,
           target, bulls: getTotalBulls(), visits: visits.length, bpr: getBPR(),
-          c0: getCount(0), c1: getCount(1), c2: getCount(2), c3: getCount(3)
+          c0: getCount(0), c1: getCount(1), c2: getCount(2), c3: getCount(3),
+          rawVisits: [...visits] // SAVING RAW THROWS FOR THE MICRO CHART
         };
         history.unshift(session);
         localStorage.setItem('ocheHistory', JSON.stringify(history));
       }
       
-      sessionStartTime = null; // Reset timer
+      sessionStartTime = null; 
       currentView = 'summary';
       render();
     };
@@ -223,11 +222,10 @@
     };
 
     // --- CHART SETUP ---
-    window.renderChart = () => {
+    window.renderInsightsChart = () => {
       const ctx = document.getElementById('bprChart');
       if (!ctx || history.length < 2) return;
 
-      // Reverse history so oldest is on the left
       const chronological = [...history].reverse();
       const labels = chronological.map(h => h.date.split(' ')[0]);
       const data = chronological.map(h => parseFloat(h.bpr) || 0);
@@ -238,7 +236,7 @@
           labels: labels,
           datasets: [{
             data: data,
-            borderColor: '#3b82f6', // Tailwind blue-500
+            borderColor: '#3b82f6', 
             backgroundColor: 'rgba(59, 130, 246, 0.1)',
             borderWidth: 3,
             pointBackgroundColor: '#ffffff',
@@ -254,6 +252,47 @@
           scales: {
             y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af' } },
             x: { grid: { display: false }, ticks: { color: '#9ca3af', maxTicksLimit: 5 } }
+          }
+        }
+      });
+    };
+
+    window.renderSessionChart = () => {
+      const ctx = document.getElementById('sessionChart');
+      if (!ctx || visits.length === 0) return;
+
+      const labels = visits.map((_, i) => i + 1);
+
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: visits,
+            borderColor: '#a855f7', // Purple for the micro-chart
+            backgroundColor: 'rgba(168, 85, 247, 0.1)',
+            borderWidth: 2,
+            pointBackgroundColor: '#fff',
+            pointRadius: 2,
+            fill: true,
+            tension: 0.3 // Smooth curve to see the warm-up rhythm
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { 
+              min: 0, 
+              max: 3, 
+              ticks: { stepSize: 1, color: '#9ca3af' }, 
+              grid: { color: '#1f2937' } 
+            },
+            x: { 
+              grid: { display: false }, 
+              ticks: { color: '#9ca3af', maxTicksLimit: 10 } 
+            }
           }
         }
       });
@@ -301,25 +340,32 @@
       } 
       else if (currentView === 'summary') {
         app.innerHTML = `
-          <div class="flex-1 flex flex-col items-center justify-center p-8 text-center bg-black">
-            <h1 class="text-4xl font-bold mb-8 text-white">Session Ended</h1>
-            <div class="text-gray-500 mb-8 font-medium bg-gray-900 px-4 py-2 rounded-full">⏱️ ${sessionStartTime ? formatTime(Math.floor((Date.now() - sessionStartTime) / 1000)) : history[0]?.duration}</div>
-            <div class="space-y-4 text-xl text-gray-400 w-full max-w-xs mb-10">
+          <div class="flex-1 scrollable flex flex-col items-center p-8 text-center bg-black">
+            <h1 class="text-3xl font-bold mb-4 text-white">Session Summary</h1>
+            <div class="text-gray-500 mb-6 font-medium bg-gray-900 px-4 py-2 rounded-full text-sm">⏱️ ${sessionStartTime ? formatTime(Math.floor((Date.now() - sessionStartTime) / 1000)) : history[0]?.duration}</div>
+            
+            <div class="space-y-3 text-lg text-gray-400 w-full max-w-xs mb-6">
               <div class="flex justify-between border-b border-gray-800 pb-2"><span>Bulls:</span> <span class="text-white font-bold">${getTotalBulls()} / ${target}</span></div>
               <div class="flex justify-between border-b border-gray-800 pb-2"><span>Visits:</span> <span class="text-white font-bold">${visits.length}</span></div>
               <div class="flex justify-between border-b border-gray-800 pb-2"><span>BPR:</span> <span class="text-white font-bold">${getBPR()}</span></div>
               
-              <div class="mt-6 pt-4 text-sm uppercase tracking-widest text-gray-600">Breakdown</div>
-              <div class="grid grid-cols-4 gap-2 text-center text-lg mt-2">
-                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-xs">0s</div><div class="text-red-400 font-bold">${getCount(0)}</div></div>
-                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-xs">1s</div><div class="text-green-400 font-bold">${getCount(1)}</div></div>
-                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-xs">2s</div><div class="text-blue-400 font-bold">${getCount(2)}</div></div>
-                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-xs">3s</div><div class="text-purple-400 font-bold">${getCount(3)}</div></div>
+              <div class="mt-4 pt-4 text-xs uppercase tracking-widest text-gray-600">Breakdown</div>
+              <div class="grid grid-cols-4 gap-2 text-center text-sm mt-2">
+                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-[10px]">0s</div><div class="text-red-400 font-bold">${getCount(0)}</div></div>
+                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-[10px]">1s</div><div class="text-green-400 font-bold">${getCount(1)}</div></div>
+                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-[10px]">2s</div><div class="text-blue-400 font-bold">${getCount(2)}</div></div>
+                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-[10px]">3s</div><div class="text-purple-400 font-bold">${getCount(3)}</div></div>
               </div>
             </div>
-            <button onclick="restartSession()" class="w-full max-w-xs bg-white text-black font-bold py-5 rounded-2xl text-2xl active:bg-gray-300 transition-colors">Restart Practice</button>
+
+            <div class="w-full max-w-xs h-32 mb-8">
+              <canvas id="sessionChart"></canvas>
+            </div>
+
+            <button onclick="restartSession()" class="w-full max-w-xs bg-white text-black font-bold py-4 rounded-2xl text-xl active:bg-gray-300 transition-colors">Restart Practice</button>
           </div>
         `;
+        setTimeout(window.renderSessionChart, 0);
       } 
       else if (currentView === 'insights') {
         app.innerHTML = `
@@ -363,9 +409,7 @@
             </div>
           </div>
         `;
-        
-        // Wait for DOM to render, then draw the chart
-        setTimeout(window.renderChart, 0);
+        setTimeout(window.renderInsightsChart, 0);
       }
     }
 
