@@ -80,18 +80,17 @@
 
     // --- STATE MANAGEMENT ---
     let currentView = 'practice';
-    let visits = [];
+    let rounds = [];
     let target = parseInt(localStorage.getItem('defaultTarget')) || 50;
     let history = JSON.parse(localStorage.getItem('ocheHistory')) || [];
-    let metricMode = parseInt(localStorage.getItem('metricMode')) || 0; 
+    let metricMode = parseInt(localStorage.getItem('metricMode')) || 0; // 0=BPR, 1=Hidden
     let lastTapTime = 0;
     let sessionStartTime = null; 
 
     // --- METRICS CALCULATIONS ---
-    const getTotalBulls = () => visits.reduce((a, b) => a + b, 0);
-    const getBPR = () => visits.length ? (getTotalBulls() / visits.length).toFixed(2) : "0.00";
-    const getBPD = () => visits.length ? (getTotalBulls() / (visits.length * 3)).toFixed(2) : "0.00";
-    const getCount = (val) => visits.filter(v => v === val).length;
+    const getTotalBulls = () => rounds.reduce((a, b) => a + b, 0);
+    const getBPR = () => rounds.length ? (getTotalBulls() / rounds.length).toFixed(2) : "0.00";
+    const getCount = (val) => rounds.filter(v => v === val).length;
     
     const formatTime = (seconds) => {
       const m = Math.floor(seconds / 60);
@@ -102,23 +101,19 @@
     // --- UI FAST UPDATER ---
     function updateStats() {
       const scoreEl = document.getElementById('score-display');
-      const visitsEl = document.getElementById('visits-display');
+      const roundsEl = document.getElementById('rounds-display');
       const undoBtn = document.getElementById('undo-btn-container');
       const metricLabelEl = document.getElementById('metric-label');
       const metricValueEl = document.getElementById('metric-value');
       
       if (scoreEl) scoreEl.innerText = getTotalBulls();
-      if (visitsEl) visitsEl.innerText = visits.length;
-      if (undoBtn) undoBtn.innerHTML = visits.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : '';
+      if (roundsEl) roundsEl.innerText = rounds.length;
+      if (undoBtn) undoBtn.innerHTML = rounds.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : '';
 
       if (metricLabelEl && metricValueEl) {
         if (metricMode === 0) {
           metricLabelEl.innerText = "BPR";
           metricValueEl.innerText = getBPR();
-          metricValueEl.className = "text-white text-3xl ml-2 font-bold";
-        } else if (metricMode === 1) {
-          metricLabelEl.innerText = "BPD";
-          metricValueEl.innerText = getBPD();
           metricValueEl.className = "text-white text-3xl ml-2 font-bold";
         } else {
           metricLabelEl.innerText = "";
@@ -130,7 +125,7 @@
 
     // --- ACTIONS ---
     window.cycleMetric = () => {
-      metricMode = (metricMode + 1) % 3;
+      metricMode = (metricMode + 1) % 2; // Binary toggle now
       localStorage.setItem('metricMode', metricMode);
       updateStats();
     };
@@ -150,18 +145,18 @@
         setTimeout(() => btnElement.classList.remove(`flash-${val}`), 100);
       }
 
-      visits.push(val);
+      rounds.push(val);
       updateStats(); 
       
       if (getTotalBulls() >= target) setTimeout(endSession, 150); 
     };
 
     window.undoLast = () => {
-      if (visits.length > 0) {
+      if (rounds.length > 0) {
         initAudio();
         beep(150); 
-        visits.pop();
-        if (visits.length === 0) sessionStartTime = null; 
+        rounds.pop();
+        if (rounds.length === 0) sessionStartTime = null; 
         updateStats();
       }
     };
@@ -173,18 +168,18 @@
 
     window.endSession = () => {
       let durationStr = "0m 0s";
-      if (sessionStartTime && visits.length > 0) {
+      if (sessionStartTime && rounds.length > 0) {
         const seconds = Math.floor((Date.now() - sessionStartTime) / 1000);
         durationStr = formatTime(seconds);
       }
 
-      if (visits.length > 0) {
+      if (rounds.length > 0) {
         const session = {
           date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
           duration: durationStr,
-          target, bulls: getTotalBulls(), visits: visits.length, bpr: getBPR(),
+          target, bulls: getTotalBulls(), rounds: rounds.length, bpr: getBPR(),
           c0: getCount(0), c1: getCount(1), c2: getCount(2), c3: getCount(3),
-          rawVisits: [...visits] // SAVING RAW THROWS FOR THE MICRO CHART
+          rawRounds: [...rounds] 
         };
         history.unshift(session);
         localStorage.setItem('ocheHistory', JSON.stringify(history));
@@ -196,7 +191,7 @@
     };
 
     window.restartSession = () => {
-      visits = [];
+      rounds = [];
       sessionStartTime = null;
       currentView = 'practice';
       render();
@@ -259,23 +254,23 @@
 
     window.renderSessionChart = () => {
       const ctx = document.getElementById('sessionChart');
-      if (!ctx || visits.length === 0) return;
+      if (!ctx || rounds.length === 0) return;
 
-      const labels = visits.map((_, i) => i + 1);
+      const labels = rounds.map((_, i) => i + 1);
 
       new Chart(ctx, {
         type: 'line',
         data: {
           labels: labels,
           datasets: [{
-            data: visits,
-            borderColor: '#a855f7', // Purple for the micro-chart
+            data: rounds,
+            borderColor: '#a855f7', 
             backgroundColor: 'rgba(168, 85, 247, 0.1)',
             borderWidth: 2,
             pointBackgroundColor: '#fff',
             pointRadius: 2,
             fill: true,
-            tension: 0.3 // Smooth curve to see the warm-up rhythm
+            tension: 0.3 
           }]
         },
         options: {
@@ -283,19 +278,56 @@
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            y: { 
-              min: 0, 
-              max: 3, 
-              ticks: { stepSize: 1, color: '#9ca3af' }, 
-              grid: { color: '#1f2937' } 
-            },
-            x: { 
-              grid: { display: false }, 
-              ticks: { color: '#9ca3af', maxTicksLimit: 10 } 
-            }
+            y: { min: 0, max: 3, ticks: { stepSize: 1, color: '#9ca3af' }, grid: { color: '#1f2937' } },
+            x: { grid: { display: false }, ticks: { color: '#9ca3af', maxTicksLimit: 10 } }
           }
         }
       });
+    };
+
+    window.toggleMicroChart = (index) => {
+      const container = document.getElementById(`chart-container-${index}`);
+      container.classList.toggle('hidden');
+      
+      // If we are showing it, render the chart (only once)
+      if (!container.classList.contains('hidden')) {
+        const canvasId = `microChart-${index}`;
+        // Prevent re-initializing the same chart which causes errors
+        if (Chart.getChart(canvasId)) return;
+
+        const session = history[index];
+        const rawData = session.rawRounds || session.rawVisits; // backwards compatibility
+        if (!rawData) return;
+
+        const ctx = document.getElementById(canvasId);
+        const labels = rawData.map((_, i) => i + 1);
+
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: rawData,
+              borderColor: '#a855f7', 
+              backgroundColor: 'rgba(168, 85, 247, 0.1)',
+              borderWidth: 2,
+              pointBackgroundColor: '#fff',
+              pointRadius: 2,
+              fill: true,
+              tension: 0.3 
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { min: 0, max: 3, ticks: { stepSize: 1, color: '#9ca3af' }, grid: { color: '#1f2937' } },
+              x: { grid: { display: false }, ticks: { color: '#9ca3af', maxTicksLimit: 10 } }
+            }
+          }
+        });
+      }
     };
 
     // --- MAIN SCREEN RENDERING ---
@@ -319,9 +351,9 @@
           </div>
           
           <div class="flex justify-between items-end px-6 pb-4 text-gray-500">
-            <div>Visits <span id="visits-display" class="text-white text-3xl ml-2 font-bold">${visits.length}</span></div>
+            <div>Rounds <span id="rounds-display" class="text-white text-3xl ml-2 font-bold">${rounds.length}</span></div>
             <div class="flex items-end gap-6">
-              <div id="undo-btn-container">${visits.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : ''}</div>
+              <div id="undo-btn-container">${rounds.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : ''}</div>
               <div onclick="cycleMetric()" class="cursor-pointer active:opacity-70 flex items-end min-h-[40px]">
                 <span id="metric-label" class="text-gray-500 text-sm mb-1">BPR</span> 
                 <span id="metric-value" class="text-white text-3xl ml-2 font-bold">0.00</span>
@@ -346,7 +378,7 @@
             
             <div class="space-y-3 text-lg text-gray-400 w-full max-w-xs mb-6">
               <div class="flex justify-between border-b border-gray-800 pb-2"><span>Bulls:</span> <span class="text-white font-bold">${getTotalBulls()} / ${target}</span></div>
-              <div class="flex justify-between border-b border-gray-800 pb-2"><span>Visits:</span> <span class="text-white font-bold">${visits.length}</span></div>
+              <div class="flex justify-between border-b border-gray-800 pb-2"><span>Rounds:</span> <span class="text-white font-bold">${rounds.length}</span></div>
               <div class="flex justify-between border-b border-gray-800 pb-2"><span>BPR:</span> <span class="text-white font-bold">${getBPR()}</span></div>
               
               <div class="mt-4 pt-4 text-xs uppercase tracking-widest text-gray-600">Breakdown</div>
@@ -386,22 +418,37 @@
               ${history.length === 0 ? '<div class="text-center text-gray-500 mt-8 text-lg">No sessions recorded yet.</div>' :
                 history.map((h, index) => `
                   <div class="bg-gray-900 rounded-2xl p-5 border border-gray-800 relative">
+                    
                     <div class="flex justify-between items-start mb-3 border-b border-gray-800 pb-3">
                       <div class="text-sm text-gray-400">${h.date} &nbsp;·&nbsp; ⏱️ ${h.duration || '-'}</div>
                       <button onclick="deleteRecord(${index})" class="text-red-900 font-bold active:text-red-500 text-sm px-3 py-1 bg-gray-950 rounded">X</button>
                     </div>
+                    
                     <div class="flex justify-between items-center mb-4">
                       <div>
                         <div class="text-4xl font-bold text-white">${h.bpr || '0.00'} <span class="text-sm font-normal text-gray-500">BPR</span></div>
-                        <div class="text-sm text-gray-400 mt-1">${h.bulls}/${h.target} Bulls in ${h.visits} visits</div>
+                        <div class="text-sm text-gray-400 mt-1">${h.bulls}/${h.target} Bulls in ${h.rounds || h.visits} rounds</div>
                       </div>
+                      ${(h.rawRounds || h.rawVisits) ? `
+                        <button onclick="toggleMicroChart(${index})" class="text-purple-400 text-sm font-medium bg-purple-900/30 px-3 py-2 rounded-lg active:bg-purple-900/50 transition-colors">
+                          📈 Chart
+                        </button>
+                      ` : ''}
                     </div>
+                    
                     <div class="flex justify-between text-center text-sm border-t border-gray-800 pt-3">
                       <div><span class="text-gray-500 text-xs block">0s</span> <span class="text-red-400 font-medium">${h.c0 !== undefined ? h.c0 : '-'}</span></div>
                       <div><span class="text-gray-500 text-xs block">1s</span> <span class="text-green-400 font-medium">${h.c1 !== undefined ? h.c1 : '-'}</span></div>
                       <div><span class="text-gray-500 text-xs block">2s</span> <span class="text-blue-400 font-medium">${h.c2 !== undefined ? h.c2 : '-'}</span></div>
                       <div><span class="text-gray-500 text-xs block">3s</span> <span class="text-purple-400 font-medium">${h.c3 !== undefined ? h.c3 : '-'}</span></div>
                     </div>
+                    
+                    ${(h.rawRounds || h.rawVisits) ? `
+                      <div id="chart-container-${index}" class="hidden w-full h-32 mt-4 pt-4 border-t border-gray-800">
+                        <canvas id="microChart-${index}"></canvas>
+                      </div>
+                    ` : ''}
+                    
                   </div>
                 `).join('')
               }
