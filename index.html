@@ -89,12 +89,6 @@
       else { beep(500); beep(600, 0.10); beep(700, 0.20); }
     }
 
-    function playLevelUp() {
-      beep(400, 0, 0.1);
-      beep(600, 0.1, 0.1);
-      beep(800, 0.2, 0.2);
-    }
-
     // --- SHARED STATE ---
     let currentView = 'practice';
     let appMode = localStorage.getItem('appMode') || 'bull'; // 'bull' or 'cricket'
@@ -107,7 +101,7 @@
     let target = parseInt(localStorage.getItem('defaultTarget')) || 50;
     let history = JSON.parse(localStorage.getItem('ocheHistory')) || [];
 
-    // --- CRICKET SPRINT STATE ---
+    // --- CRICKET COUNT-UP STATE ---
     let cricketRounds = []; // Array of { marks: X }
     const cricketTargets = ['20', '19', '18', '17', '16', '15', 'BULL'];
     let cricketHistory = JSON.parse(localStorage.getItem('ocheCricketHistory')) || [];
@@ -160,27 +154,14 @@
     };
 
     // ==========================================
-    // CRICKET SPRINT LOGIC
+    // CRICKET COUNT-UP LOGIC
     // ==========================================
-    function getCricketState() {
-      let targetMarks = [0,0,0,0,0,0,0];
-      let targetRounds = [0,0,0,0,0,0,0];
-      let currentIdx = 0;
-
-      for (let r of cricketRounds) {
-        targetMarks[currentIdx] += r.marks;
-        targetRounds[currentIdx]++;
-        if (targetMarks[currentIdx] >= 10 && currentIdx < 6) {
-          currentIdx++;
-        }
-      }
-      return { targetMarks, targetRounds, currentIdx };
-    }
-
     const getCricketMPR = () => {
       const totalMarks = cricketRounds.reduce((sum, r) => sum + r.marks, 0);
       return cricketRounds.length ? (totalMarks / cricketRounds.length).toFixed(2) : "0.00";
     };
+
+    const getTotalMarks = () => cricketRounds.reduce((sum, r) => sum + r.marks, 0);
 
     window.tapCricket = (marks, btnElement) => {
       const now = Date.now();
@@ -196,21 +177,15 @@
         setTimeout(() => btnElement.classList.remove(flashClass), 100);
       }
 
-      const stateBefore = getCricketState();
+      playCricketSound(marks);
       cricketRounds.push({ marks });
-      const stateAfter = getCricketState();
-
-      if (stateAfter.currentIdx > stateBefore.currentIdx) {
-        playLevelUp();
-      } else {
-        playCricketSound(marks);
-      }
-
-      updateStats(); 
-
-      // If all 7 targets have 10+ marks
-      if (stateAfter.targetMarks[6] >= 10) {
+      
+      // If we just hit the 7th target (Bull), the session is over
+      if (cricketRounds.length >= 7) {
+        updateStats();
         setTimeout(endSession, 250); 
+      } else {
+        render(); // Re-render to update the numpad state (e.g., locking 7-9 for Bull)
       }
     };
 
@@ -223,11 +198,12 @@
       if (appMode === 'bull' && rounds.length > 0) {
         rounds.pop();
         if (rounds.length === 0) sessionStartTime = null; 
+        updateStats();
       } else if (appMode === 'cricket' && cricketRounds.length > 0) {
         cricketRounds.pop();
         if (cricketRounds.length === 0) sessionStartTime = null;
+        render(); // Force re-render for Cricket to fix numpad states
       }
-      updateStats();
     };
 
     window.updateTarget = (e) => {
@@ -255,11 +231,10 @@
         localStorage.setItem('ocheHistory', JSON.stringify(history));
       } 
       else if (appMode === 'cricket' && cricketRounds.length > 0) {
-        const state = getCricketState();
         cricketHistory.unshift({
           date: dateStr, duration: durationStr,
           mpr: getCricketMPR(), rounds: cricketRounds.length,
-          targetMarks: state.targetMarks, targetRounds: state.targetRounds,
+          totalMarks: getTotalMarks(),
           rawRounds: [...cricketRounds]
         });
         localStorage.setItem('ocheCricketHistory', JSON.stringify(cricketHistory));
@@ -335,12 +310,9 @@
         }
       } 
       else if (appMode === 'cricket') {
-        const state = getCricketState();
-        const activeTargetEl = document.getElementById('cricket-target-display');
         const activeMarksEl = document.getElementById('cricket-marks-display');
         
-        if (activeTargetEl) activeTargetEl.innerText = cricketTargets[state.currentIdx] || 'DONE';
-        if (activeMarksEl) activeMarksEl.innerText = `${state.targetMarks[state.currentIdx] || 0} / 10`;
+        if (activeMarksEl) activeMarksEl.innerText = `${getTotalMarks()} / 60`;
         if (roundsEl) roundsEl.innerText = cricketRounds.length;
         if (undoBtn) undoBtn.innerHTML = cricketRounds.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : '';
 
@@ -385,15 +357,15 @@
         });
       } 
       else if (appMode === 'cricket' && cricketRounds.length > 0) {
-        const state = getCricketState();
-        const mprData = state.targetMarks.map((m, i) => state.targetRounds[i] ? (m / state.targetRounds[i]).toFixed(2) : 0);
+        // Pad array with zeros if session ended early
+        const radarData = cricketTargets.map((_, i) => cricketRounds[i] ? cricketRounds[i].marks : 0);
         
         new Chart(ctx, {
           type: 'radar',
           data: {
             labels: cricketTargets,
             datasets: [{
-              data: mprData, borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.3)',
+              data: radarData, borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.3)',
               pointBackgroundColor: '#fff', borderWidth: 2
             }]
           },
@@ -403,7 +375,7 @@
               r: {
                 angleLines: { color: '#374151' }, grid: { color: '#374151' },
                 pointLabels: { color: '#d1d5db', font: { size: 14 } },
-                ticks: { display: false, min: 0 }
+                ticks: { display: false, min: 0, max: 9 } // Scale fixed to 9 max marks
               }
             }
           }
@@ -436,20 +408,21 @@
         } 
         else {
           const session = cricketHistory[index];
-          const mprData = session.targetMarks.map((m, i) => session.targetRounds[i] ? (m / session.targetRounds[i]).toFixed(2) : 0);
+          const radarData = cricketTargets.map((_, i) => session.rawRounds[i] ? session.rawRounds[i].marks : 0);
+          
           new Chart(ctx, {
             type: 'radar',
             data: {
               labels: cricketTargets,
               datasets: [{
-                data: mprData, borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.3)',
+                data: radarData, borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.3)',
                 pointBackgroundColor: '#fff', borderWidth: 2
               }]
             },
             options: {
               responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
               scales: {
-                r: { angleLines: { color: '#374151' }, grid: { color: '#374151' }, pointLabels: { color: '#d1d5db' }, ticks: { display: false, min: 0 } }
+                r: { angleLines: { color: '#374151' }, grid: { color: '#374151' }, pointLabels: { color: '#d1d5db' }, ticks: { display: false, min: 0, max: 9 } }
               }
             }
           });
@@ -468,12 +441,15 @@
         <div class="flex justify-center mt-2 mb-2 w-full">
           <div class="bg-gray-900 rounded-full p-1 flex w-64 justify-between">
             <button onclick="switchMode('bull')" class="${appMode === 'bull' ? 'bg-gray-700 text-white' : 'text-gray-500'} w-1/2 py-2 rounded-full text-xs font-bold transition-colors">BULL RACE</button>
-            <button onclick="switchMode('cricket')" class="${appMode === 'cricket' ? 'bg-gray-700 text-white' : 'text-gray-500'} w-1/2 py-2 rounded-full text-xs font-bold transition-colors">CRICKET SPRINT</button>
+            <button onclick="switchMode('cricket')" class="${appMode === 'cricket' ? 'bg-gray-700 text-white' : 'text-gray-500'} w-1/2 py-2 rounded-full text-xs font-bold transition-colors">CRICKET COUNT-UP</button>
           </div>
         </div>
       `;
 
       if (currentView === 'practice') {
+        const currentTargetIdx = cricketRounds.length;
+        const isBullStage = currentTargetIdx === 6;
+
         const bullGrid = `
           <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-4 px-4 pb-6">
             <button ontouchstart="tapBull(0, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">0</button>
@@ -485,7 +461,10 @@
 
         const cricketGrid = `
           <div class="flex-1 grid grid-cols-3 grid-rows-4 gap-3 px-4 pb-6">
-            ${[1,2,3,4,5,6,7,8,9].map(n => `<button ontouchstart="tapCricket(${n}, this)" class="btn-target border border-white/20 rounded-2xl flex items-center justify-center text-[3.5rem] font-bold text-gray-200">${n}</button>`).join('')}
+            ${[1,2,3,4,5,6].map(n => `<button ontouchstart="tapCricket(${n}, this)" class="btn-target border border-white/20 rounded-2xl flex items-center justify-center text-[3.5rem] font-bold text-gray-200">${n}</button>`).join('')}
+            ${[7,8,9].map(n => `
+              <button ontouchstart="${isBullStage ? '' : `tapCricket(${n}, this)`}" class="btn-target border border-white/20 rounded-2xl flex items-center justify-center text-[3.5rem] font-bold text-gray-200 transition-opacity duration-300 ${isBullStage ? 'opacity-10' : ''}">${n}</button>
+            `).join('')}
             <div></div>
             <button ontouchstart="tapCricket(0, this)" class="btn-target border border-white/20 rounded-2xl flex items-center justify-center text-[3.5rem] font-bold text-gray-200">0</button>
             <div></div>
@@ -510,14 +489,14 @@
             ` : `
               <div class="text-gray-500 text-sm mb-1 uppercase tracking-widest">Target</div>
               <div class="text-[clamp(3rem,15vw,6rem)] font-bold leading-none flex items-center justify-center w-full whitespace-nowrap tracking-tight px-2 text-purple-400">
-                <span id="cricket-target-display">20</span>
+                <span id="cricket-target-display">${cricketTargets[currentTargetIdx] || 'DONE'}</span>
               </div>
-              <div class="text-gray-400 mt-2">Marks: <span id="cricket-marks-display" class="text-white font-bold">0 / 10</span></div>
+              <div class="text-gray-400 mt-2">Total Marks: <span id="cricket-marks-display" class="text-white font-bold">${getTotalMarks()} / 60</span></div>
             `}
           </div>
           
           <div class="flex justify-between items-end px-6 pb-4 text-gray-500">
-            <div>Rounds <span id="rounds-display" class="text-white text-3xl ml-2 font-bold">0</span></div>
+            <div>Rounds <span id="rounds-display" class="text-white text-3xl ml-2 font-bold">${appMode === 'bull' ? rounds.length : cricketRounds.length}</span></div>
             <div class="flex items-end gap-6">
               <div id="undo-btn-container"></div>
               <div onclick="cycleMetric()" class="cursor-pointer active:opacity-70 flex items-end min-h-[40px]">
@@ -542,13 +521,13 @@
                 <div class="flex justify-between border-b border-gray-800 pb-2"><span>Rounds:</span> <span class="text-white font-bold">${rounds.length}</span></div>
                 <div class="flex justify-between border-b border-gray-800 pb-2"><span>BPR:</span> <span class="text-white font-bold">${getBPR()}</span></div>
               ` : `
-                <div class="flex justify-between border-b border-gray-800 pb-2"><span>Status:</span> <span class="text-purple-400 font-bold">70 Marks Cleared</span></div>
-                <div class="flex justify-between border-b border-gray-800 pb-2"><span>Total Rounds:</span> <span class="text-white font-bold">${cricketRounds.length}</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-2"><span>Marks Scored:</span> <span class="text-purple-400 font-bold">${getTotalMarks()} / 60</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-2"><span>Total Rounds:</span> <span class="text-white font-bold">${cricketRounds.length} / 7</span></div>
                 <div class="flex justify-between border-b border-gray-800 pb-2"><span>Global MPR:</span> <span class="text-white font-bold">${getCricketMPR()}</span></div>
               `}
             </div>
 
-            <div class="w-full max-w-xs h-48 mb-8">
+            <div class="w-full max-w-xs h-56 mb-8">
               <canvas id="sessionChart"></canvas>
             </div>
 
@@ -587,7 +566,7 @@
                         <span class="text-sm font-normal text-gray-500">${appMode === 'bull' ? 'BPR' : 'MPR'}</span>
                       </div>
                       <div class="text-sm text-gray-400 mt-1">
-                        ${appMode === 'bull' ? `${h.bulls}/${h.target} Bulls in ${h.rounds || h.visits} rounds` : `70 Marks in ${h.rounds} rounds`}
+                        ${appMode === 'bull' ? `${h.bulls}/${h.target} Bulls in ${h.rounds || h.visits} rounds` : `${h.totalMarks}/60 Marks in 7 rounds`}
                       </div>
                     </div>
                     ${(h.rawRounds || h.rawVisits) ? `
@@ -607,7 +586,7 @@
                   ` : ''}
                   
                   ${(h.rawRounds || h.rawVisits) ? `
-                    <div id="chart-container-${index}" class="hidden w-full ${appMode === 'bull' ? 'h-32' : 'h-48'} mt-4 pt-4 border-t border-gray-800">
+                    <div id="chart-container-${index}" class="hidden w-full ${appMode === 'bull' ? 'h-32' : 'h-56'} mt-4 pt-4 border-t border-gray-800">
                       <canvas id="microChart-${index}"></canvas>
                     </div>
                   ` : ''}
