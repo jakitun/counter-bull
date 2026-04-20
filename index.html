@@ -7,7 +7,10 @@
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     html, body {
       height: 100%;
@@ -28,7 +31,7 @@
     input[type="number"] {
       height: 1.2em; 
       line-height: 1;
-      width: 3.5ch; /* FIXED: Now supports 3-digit targets like 100 */
+      width: 3.5ch;
       outline: none;
       background: transparent;
     }
@@ -82,12 +85,19 @@
     let history = JSON.parse(localStorage.getItem('ocheHistory')) || [];
     let metricMode = parseInt(localStorage.getItem('metricMode')) || 0; // 0=BPR, 1=BPD, 2=Hidden
     let lastTapTime = 0;
+    let sessionStartTime = null; // Silent Timer
 
     // --- METRICS CALCULATIONS ---
     const getTotalBulls = () => visits.reduce((a, b) => a + b, 0);
     const getBPR = () => visits.length ? (getTotalBulls() / visits.length).toFixed(2) : "0.00";
     const getBPD = () => visits.length ? (getTotalBulls() / (visits.length * 3)).toFixed(2) : "0.00";
     const getCount = (val) => visits.filter(v => v === val).length;
+    
+    const formatTime = (seconds) => {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m}m ${s}s`;
+    };
 
     // --- UI FAST UPDATER ---
     function updateStats() {
@@ -111,8 +121,9 @@
           metricValueEl.innerText = getBPD();
           metricValueEl.className = "text-white text-3xl ml-2 font-bold";
         } else {
-          metricLabelEl.innerText = "Metric";
-          metricValueEl.innerText = "Hidden";
+          // The Clean Hidden Mode
+          metricLabelEl.innerText = "";
+          metricValueEl.innerText = "—";
           metricValueEl.className = "text-gray-700 text-3xl ml-2 font-bold";
         }
       }
@@ -127,8 +138,12 @@
 
     window.tapButton = (val, btnElement) => {
       const now = Date.now();
-      if (now - lastTapTime < 50) return; // 50ms Debounce
+      if (now - lastTapTime < 50) return; // Ghost Tap Debounce
       lastTapTime = now;
+      
+      // Start silent timer on first tap
+      if (!sessionStartTime) sessionStartTime = Date.now();
+
       initAudio();
       playSound(val);
 
@@ -148,6 +163,7 @@
         initAudio();
         beep(150); 
         visits.pop();
+        if (visits.length === 0) sessionStartTime = null; // Reset timer if undoing first throw
         updateStats();
       }
     };
@@ -158,21 +174,31 @@
     };
 
     window.endSession = () => {
+      let durationStr = "0m 0s";
+      if (sessionStartTime && visits.length > 0) {
+        const seconds = Math.floor((Date.now() - sessionStartTime) / 1000);
+        durationStr = formatTime(seconds);
+      }
+
       if (visits.length > 0) {
         const session = {
           date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+          duration: durationStr,
           target, bulls: getTotalBulls(), visits: visits.length, bpr: getBPR(),
           c0: getCount(0), c1: getCount(1), c2: getCount(2), c3: getCount(3)
         };
         history.unshift(session);
         localStorage.setItem('ocheHistory', JSON.stringify(history));
       }
+      
+      sessionStartTime = null; // Reset timer
       currentView = 'summary';
       render();
     };
 
     window.restartSession = () => {
       visits = [];
+      sessionStartTime = null;
       currentView = 'practice';
       render();
     };
@@ -194,6 +220,43 @@
       if (confirm('Clear all history?')) { 
         history = []; localStorage.removeItem('ocheHistory'); render(); 
       }
+    };
+
+    // --- CHART SETUP ---
+    window.renderChart = () => {
+      const ctx = document.getElementById('bprChart');
+      if (!ctx || history.length < 2) return;
+
+      // Reverse history so oldest is on the left
+      const chronological = [...history].reverse();
+      const labels = chronological.map(h => h.date.split(' ')[0]);
+      const data = chronological.map(h => parseFloat(h.bpr) || 0);
+
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            borderColor: '#3b82f6', // Tailwind blue-500
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderWidth: 3,
+            pointBackgroundColor: '#ffffff',
+            pointRadius: 4,
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af' } },
+            x: { grid: { display: false }, ticks: { color: '#9ca3af', maxTicksLimit: 5 } }
+          }
+        }
+      });
     };
 
     // --- MAIN SCREEN RENDERING ---
@@ -220,8 +283,8 @@
             <div>Visits <span id="visits-display" class="text-white text-3xl ml-2 font-bold">${visits.length}</span></div>
             <div class="flex items-end gap-6">
               <div id="undo-btn-container">${visits.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : ''}</div>
-              <div onclick="cycleMetric()" class="cursor-pointer active:opacity-70 flex items-end">
-                <span id="metric-label">BPR</span> 
+              <div onclick="cycleMetric()" class="cursor-pointer active:opacity-70 flex items-end min-h-[40px]">
+                <span id="metric-label" class="text-gray-500 text-sm mb-1">BPR</span> 
                 <span id="metric-value" class="text-white text-3xl ml-2 font-bold">0.00</span>
               </div>
             </div>
@@ -234,12 +297,13 @@
             <button ontouchstart="tapButton(3, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">3</button>
           </div>
         `;
-        updateStats(); // Syncs the metric label/value on load
+        updateStats();
       } 
       else if (currentView === 'summary') {
         app.innerHTML = `
           <div class="flex-1 flex flex-col items-center justify-center p-8 text-center bg-black">
-            <h1 class="text-4xl font-bold mb-10 text-white">Session Ended</h1>
+            <h1 class="text-4xl font-bold mb-8 text-white">Session Ended</h1>
+            <div class="text-gray-500 mb-8 font-medium bg-gray-900 px-4 py-2 rounded-full">⏱️ ${sessionStartTime ? formatTime(Math.floor((Date.now() - sessionStartTime) / 1000)) : history[0]?.duration}</div>
             <div class="space-y-4 text-xl text-gray-400 w-full max-w-xs mb-10">
               <div class="flex justify-between border-b border-gray-800 pb-2"><span>Bulls:</span> <span class="text-white font-bold">${getTotalBulls()} / ${target}</span></div>
               <div class="flex justify-between border-b border-gray-800 pb-2"><span>Visits:</span> <span class="text-white font-bold">${visits.length}</span></div>
@@ -247,10 +311,10 @@
               
               <div class="mt-6 pt-4 text-sm uppercase tracking-widest text-gray-600">Breakdown</div>
               <div class="grid grid-cols-4 gap-2 text-center text-lg mt-2">
-                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-xs">Blanks</div><div class="text-red-400 font-bold">${getCount(0)}</div></div>
-                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-xs">Singles</div><div class="text-green-400 font-bold">${getCount(1)}</div></div>
-                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-xs">Tons</div><div class="text-blue-400 font-bold">${getCount(2)}</div></div>
-                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-xs">Hats</div><div class="text-purple-400 font-bold">${getCount(3)}</div></div>
+                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-xs">0s</div><div class="text-red-400 font-bold">${getCount(0)}</div></div>
+                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-xs">1s</div><div class="text-green-400 font-bold">${getCount(1)}</div></div>
+                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-xs">2s</div><div class="text-blue-400 font-bold">${getCount(2)}</div></div>
+                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-xs">3s</div><div class="text-purple-400 font-bold">${getCount(3)}</div></div>
               </div>
             </div>
             <button onclick="restartSession()" class="w-full max-w-xs bg-white text-black font-bold py-5 rounded-2xl text-2xl active:bg-gray-300 transition-colors">Restart Practice</button>
@@ -259,37 +323,49 @@
       } 
       else if (currentView === 'insights') {
         app.innerHTML = `
-          <div class="flex justify-between items-center px-6 py-5 border-b border-gray-800 bg-black z-10">
+          <div class="flex justify-between items-center px-6 py-5 bg-black z-10">
             <button onclick="toggleInsights()" class="text-blue-500 font-medium text-lg active:text-blue-400">&larr; Back</button>
             <span class="font-bold text-xl text-white">Insights</span>
             <div class="w-12"></div>
           </div>
-          <div class="flex-1 scrollable p-4 space-y-4">
-            ${history.length === 0 ? '<div class="text-center text-gray-500 mt-12 text-lg">No sessions recorded yet.</div>' :
-              history.map((h, index) => `
-                <div class="bg-gray-900 rounded-2xl p-5 border border-gray-800 relative">
-                  <div class="flex justify-between items-start mb-3 border-b border-gray-800 pb-3">
-                    <div class="text-sm text-gray-400">${h.date}</div>
-                    <button onclick="deleteRecord(${index})" class="text-red-900 font-bold active:text-red-500 text-sm px-3 py-1 bg-gray-950 rounded">X</button>
-                  </div>
-                  <div class="flex justify-between items-center mb-4">
-                    <div>
-                      <div class="text-4xl font-bold text-white">${h.bpr || '0.00'} <span class="text-sm font-normal text-gray-500">BPR</span></div>
-                      <div class="text-sm text-gray-400 mt-1">${h.bulls}/${h.target} Bulls in ${h.visits} visits</div>
+          
+          <div class="flex-1 scrollable bg-black">
+            <div class="px-4 py-2 mb-4 border-b border-gray-800">
+              ${history.length > 1 
+                ? '<div class="h-48 w-full"><canvas id="bprChart"></canvas></div>' 
+                : '<div class="h-32 flex items-center justify-center text-gray-600 text-sm">Need at least 2 sessions to show trend graph.</div>'}
+            </div>
+
+            <div class="px-4 pb-10 space-y-4">
+              ${history.length === 0 ? '<div class="text-center text-gray-500 mt-8 text-lg">No sessions recorded yet.</div>' :
+                history.map((h, index) => `
+                  <div class="bg-gray-900 rounded-2xl p-5 border border-gray-800 relative">
+                    <div class="flex justify-between items-start mb-3 border-b border-gray-800 pb-3">
+                      <div class="text-sm text-gray-400">${h.date} &nbsp;·&nbsp; ⏱️ ${h.duration || '-'}</div>
+                      <button onclick="deleteRecord(${index})" class="text-red-900 font-bold active:text-red-500 text-sm px-3 py-1 bg-gray-950 rounded">X</button>
+                    </div>
+                    <div class="flex justify-between items-center mb-4">
+                      <div>
+                        <div class="text-4xl font-bold text-white">${h.bpr || '0.00'} <span class="text-sm font-normal text-gray-500">BPR</span></div>
+                        <div class="text-sm text-gray-400 mt-1">${h.bulls}/${h.target} Bulls in ${h.visits} visits</div>
+                      </div>
+                    </div>
+                    <div class="flex justify-between text-center text-sm border-t border-gray-800 pt-3">
+                      <div><span class="text-gray-500 text-xs block">0s</span> <span class="text-red-400 font-medium">${h.c0 !== undefined ? h.c0 : '-'}</span></div>
+                      <div><span class="text-gray-500 text-xs block">1s</span> <span class="text-green-400 font-medium">${h.c1 !== undefined ? h.c1 : '-'}</span></div>
+                      <div><span class="text-gray-500 text-xs block">2s</span> <span class="text-blue-400 font-medium">${h.c2 !== undefined ? h.c2 : '-'}</span></div>
+                      <div><span class="text-gray-500 text-xs block">3s</span> <span class="text-purple-400 font-medium">${h.c3 !== undefined ? h.c3 : '-'}</span></div>
                     </div>
                   </div>
-                  <div class="flex justify-between text-center text-sm border-t border-gray-800 pt-3">
-                    <div><span class="text-gray-500 text-xs block">0s</span> <span class="text-red-400 font-medium">${h.c0 !== undefined ? h.c0 : '-'}</span></div>
-                    <div><span class="text-gray-500 text-xs block">1s</span> <span class="text-green-400 font-medium">${h.c1 !== undefined ? h.c1 : '-'}</span></div>
-                    <div><span class="text-gray-500 text-xs block">2s</span> <span class="text-blue-400 font-medium">${h.c2 !== undefined ? h.c2 : '-'}</span></div>
-                    <div><span class="text-gray-500 text-xs block">3s</span> <span class="text-purple-400 font-medium">${h.c3 !== undefined ? h.c3 : '-'}</span></div>
-                  </div>
-                </div>
-              `).join('')
-            }
-            ${history.length > 0 ? `<button onclick="clearHistory()" class="w-full mt-8 py-4 text-red-500 font-medium text-lg active:text-red-400">Clear All History</button>` : ''}
+                `).join('')
+              }
+              ${history.length > 0 ? `<button onclick="clearHistory()" class="w-full mt-8 py-4 text-red-500 font-medium text-lg active:text-red-400">Clear All History</button>` : ''}
+            </div>
           </div>
         `;
+        
+        // Wait for DOM to render, then draw the chart
+        setTimeout(window.renderChart, 0);
       }
     }
 
