@@ -343,7 +343,7 @@
           
           <div class="flex-none flex flex-col items-center justify-center py-4">
             <div class="text-gray-500 text-sm mb-1 uppercase tracking-widest">Bull / Target</div>
-            <div class="text-[6rem] font-bold leading-none flex items-center justify-center">
+            <div class="text-[clamp(3rem,15vw,6rem)] font-bold leading-none flex items-center justify-center w-full whitespace-nowrap tracking-tight px-2">
               <span id="score-display">${getTotalBulls()}</span>
               <span class="mx-3 text-gray-700">/</span>
               <input type="number" value="${target}" onchange="updateTarget(event)" class="text-center p-0 m-0 text-white" />
