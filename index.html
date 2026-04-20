@@ -37,10 +37,14 @@
     }
 
     .btn-target { transition: background-color 0.15s ease-out; } 
+    /* Bull Colors */
     .flash-0 { background-color: #ef4444 !important; transition: none !important; } 
     .flash-1 { background-color: #22c55e !important; transition: none !important; } 
     .flash-2 { background-color: #3b82f6 !important; transition: none !important; } 
     .flash-3 { background-color: #a855f7 !important; transition: none !important; }
+    /* Cricket Colors */
+    .flash-c-miss { background-color: #ef4444 !important; transition: none !important; } 
+    .flash-c-hit { background-color: #a855f7 !important; transition: none !important; } 
 
     .scrollable { touch-action: auto; overflow-y: auto; overscroll-behavior: auto; }
   </style>
@@ -56,7 +60,7 @@
       if (audioCtx.state === 'suspended') audioCtx.resume();
     }
     
-    function beep(freq, delay = 0) {
+    function beep(freq, delay = 0, duration = 0.1) {
       if (!audioCtx) return;
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
@@ -67,8 +71,8 @@
       const t = audioCtx.currentTime + delay;
       osc.start(t);
       gain.gain.setValueAtTime(1, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-      osc.stop(t + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+      osc.stop(t + duration);
     }
 
     function playSound(v) {
@@ -78,63 +82,68 @@
       if (v === 3) { beep(500); beep(500, 0.10); beep(500, 0.20); }
     }
 
-    // --- STATE MANAGEMENT ---
+    function playCricketSound(marks) {
+      if (marks === 0) beep(200);
+      else if (marks <= 3) beep(300 + (marks * 50));
+      else if (marks <= 6) { beep(400); beep(500, 0.15); }
+      else { beep(500); beep(600, 0.10); beep(700, 0.20); }
+    }
+
+    function playLevelUp() {
+      beep(400, 0, 0.1);
+      beep(600, 0.1, 0.1);
+      beep(800, 0.2, 0.2);
+    }
+
+    // --- SHARED STATE ---
     let currentView = 'practice';
+    let appMode = localStorage.getItem('appMode') || 'bull'; // 'bull' or 'cricket'
+    let lastTapTime = 0;
+    let sessionStartTime = null; 
+    let metricMode = parseInt(localStorage.getItem('metricMode')) || 0; // 0=Show, 1=Hidden
+
+    // --- BULL RACE STATE ---
     let rounds = [];
     let target = parseInt(localStorage.getItem('defaultTarget')) || 50;
     let history = JSON.parse(localStorage.getItem('ocheHistory')) || [];
-    let metricMode = parseInt(localStorage.getItem('metricMode')) || 0; // 0=BPR, 1=Hidden
-    let lastTapTime = 0;
-    let sessionStartTime = null; 
 
-    // --- METRICS CALCULATIONS ---
-    const getTotalBulls = () => rounds.reduce((a, b) => a + b, 0);
-    const getBPR = () => rounds.length ? (getTotalBulls() / rounds.length).toFixed(2) : "0.00";
-    const getCount = (val) => rounds.filter(v => v === val).length;
-    
-    const formatTime = (seconds) => {
-      const m = Math.floor(seconds / 60);
-      const s = seconds % 60;
-      return `${m}m ${s}s`;
+    // --- CRICKET SPRINT STATE ---
+    let cricketRounds = []; // Array of { marks: X }
+    const cricketTargets = ['20', '19', '18', '17', '16', '15', 'BULL'];
+    let cricketHistory = JSON.parse(localStorage.getItem('ocheCricketHistory')) || [];
+
+    // --- UTILS ---
+    const formatTime = (seconds) => `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+
+    window.switchMode = (mode) => {
+      if (rounds.length > 0 || cricketRounds.length > 0) {
+        if (!confirm('Switching modes will discard your current session. Continue?')) return;
+      }
+      appMode = mode;
+      localStorage.setItem('appMode', appMode);
+      rounds = [];
+      cricketRounds = [];
+      sessionStartTime = null;
+      render();
     };
 
-    // --- UI FAST UPDATER ---
-    function updateStats() {
-      const scoreEl = document.getElementById('score-display');
-      const roundsEl = document.getElementById('rounds-display');
-      const undoBtn = document.getElementById('undo-btn-container');
-      const metricLabelEl = document.getElementById('metric-label');
-      const metricValueEl = document.getElementById('metric-value');
-      
-      if (scoreEl) scoreEl.innerText = getTotalBulls();
-      if (roundsEl) roundsEl.innerText = rounds.length;
-      if (undoBtn) undoBtn.innerHTML = rounds.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : '';
-
-      if (metricLabelEl && metricValueEl) {
-        if (metricMode === 0) {
-          metricLabelEl.innerText = "BPR";
-          metricValueEl.innerText = getBPR();
-          metricValueEl.className = "text-white text-3xl ml-2 font-bold";
-        } else {
-          metricLabelEl.innerText = "";
-          metricValueEl.innerText = "—";
-          metricValueEl.className = "text-gray-700 text-3xl ml-2 font-bold";
-        }
-      }
-    }
-
-    // --- ACTIONS ---
     window.cycleMetric = () => {
-      metricMode = (metricMode + 1) % 2; // Binary toggle now
+      metricMode = (metricMode + 1) % 2;
       localStorage.setItem('metricMode', metricMode);
       updateStats();
     };
 
-    window.tapButton = (val, btnElement) => {
+    // ==========================================
+    // BULL RACE LOGIC
+    // ==========================================
+    const getTotalBulls = () => rounds.reduce((a, b) => a + b, 0);
+    const getBPR = () => rounds.length ? (getTotalBulls() / rounds.length).toFixed(2) : "0.00";
+    const getCount = (val) => rounds.filter(v => v === val).length;
+
+    window.tapBull = (val, btnElement) => {
       const now = Date.now();
       if (now - lastTapTime < 50) return; 
       lastTapTime = now;
-      
       if (!sessionStartTime) sessionStartTime = Date.now();
 
       initAudio();
@@ -147,18 +156,78 @@
 
       rounds.push(val);
       updateStats(); 
-      
       if (getTotalBulls() >= target) setTimeout(endSession, 150); 
     };
 
+    // ==========================================
+    // CRICKET SPRINT LOGIC
+    // ==========================================
+    function getCricketState() {
+      let targetMarks = [0,0,0,0,0,0,0];
+      let targetRounds = [0,0,0,0,0,0,0];
+      let currentIdx = 0;
+
+      for (let r of cricketRounds) {
+        targetMarks[currentIdx] += r.marks;
+        targetRounds[currentIdx]++;
+        if (targetMarks[currentIdx] >= 10 && currentIdx < 6) {
+          currentIdx++;
+        }
+      }
+      return { targetMarks, targetRounds, currentIdx };
+    }
+
+    const getCricketMPR = () => {
+      const totalMarks = cricketRounds.reduce((sum, r) => sum + r.marks, 0);
+      return cricketRounds.length ? (totalMarks / cricketRounds.length).toFixed(2) : "0.00";
+    };
+
+    window.tapCricket = (marks, btnElement) => {
+      const now = Date.now();
+      if (now - lastTapTime < 50) return; 
+      lastTapTime = now;
+      if (!sessionStartTime) sessionStartTime = Date.now();
+
+      initAudio();
+      
+      const flashClass = marks === 0 ? 'flash-c-miss' : 'flash-c-hit';
+      if (btnElement) {
+        btnElement.classList.add(flashClass);
+        setTimeout(() => btnElement.classList.remove(flashClass), 100);
+      }
+
+      const stateBefore = getCricketState();
+      cricketRounds.push({ marks });
+      const stateAfter = getCricketState();
+
+      if (stateAfter.currentIdx > stateBefore.currentIdx) {
+        playLevelUp();
+      } else {
+        playCricketSound(marks);
+      }
+
+      updateStats(); 
+
+      // If all 7 targets have 10+ marks
+      if (stateAfter.targetMarks[6] >= 10) {
+        setTimeout(endSession, 250); 
+      }
+    };
+
+    // ==========================================
+    // SHARED ACTIONS
+    // ==========================================
     window.undoLast = () => {
-      if (rounds.length > 0) {
-        initAudio();
-        beep(150); 
+      initAudio();
+      beep(150); 
+      if (appMode === 'bull' && rounds.length > 0) {
         rounds.pop();
         if (rounds.length === 0) sessionStartTime = null; 
-        updateStats();
+      } else if (appMode === 'cricket' && cricketRounds.length > 0) {
+        cricketRounds.pop();
+        if (cricketRounds.length === 0) sessionStartTime = null;
       }
+      updateStats();
     };
 
     window.updateTarget = (e) => {
@@ -168,21 +237,32 @@
 
     window.endSession = () => {
       let durationStr = "0m 0s";
-      if (sessionStartTime && rounds.length > 0) {
-        const seconds = Math.floor((Date.now() - sessionStartTime) / 1000);
-        durationStr = formatTime(seconds);
+      const arr = appMode === 'bull' ? rounds : cricketRounds;
+      
+      if (sessionStartTime && arr.length > 0) {
+        durationStr = formatTime(Math.floor((Date.now() - sessionStartTime) / 1000));
       }
 
-      if (rounds.length > 0) {
-        const session = {
-          date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-          duration: durationStr,
+      const dateStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+      if (appMode === 'bull' && rounds.length > 0) {
+        history.unshift({
+          date: dateStr, duration: durationStr,
           target, bulls: getTotalBulls(), rounds: rounds.length, bpr: getBPR(),
           c0: getCount(0), c1: getCount(1), c2: getCount(2), c3: getCount(3),
           rawRounds: [...rounds] 
-        };
-        history.unshift(session);
+        });
         localStorage.setItem('ocheHistory', JSON.stringify(history));
+      } 
+      else if (appMode === 'cricket' && cricketRounds.length > 0) {
+        const state = getCricketState();
+        cricketHistory.unshift({
+          date: dateStr, duration: durationStr,
+          mpr: getCricketMPR(), rounds: cricketRounds.length,
+          targetMarks: state.targetMarks, targetRounds: state.targetRounds,
+          rawRounds: [...cricketRounds]
+        });
+        localStorage.setItem('ocheCricketHistory', JSON.stringify(cricketHistory));
       }
       
       sessionStartTime = null; 
@@ -192,6 +272,7 @@
 
     window.restartSession = () => {
       rounds = [];
+      cricketRounds = [];
       sessionStartTime = null;
       currentView = 'practice';
       render();
@@ -204,169 +285,249 @@
 
     window.deleteRecord = (index) => {
       if (confirm('Delete this session?')) {
-        history.splice(index, 1);
-        localStorage.setItem('ocheHistory', JSON.stringify(history));
+        if (appMode === 'bull') {
+          history.splice(index, 1);
+          localStorage.setItem('ocheHistory', JSON.stringify(history));
+        } else {
+          cricketHistory.splice(index, 1);
+          localStorage.setItem('ocheCricketHistory', JSON.stringify(cricketHistory));
+        }
         render();
       }
     };
 
     window.clearHistory = () => {
-      if (confirm('Clear all history?')) { 
-        history = []; localStorage.removeItem('ocheHistory'); render(); 
+      if (confirm('Clear all history for this mode?')) { 
+        if (appMode === 'bull') {
+          history = []; localStorage.removeItem('ocheHistory');
+        } else {
+          cricketHistory = []; localStorage.removeItem('ocheCricketHistory');
+        }
+        render(); 
       }
     };
 
-    // --- CHART SETUP ---
-    window.renderInsightsChart = () => {
-      const ctx = document.getElementById('bprChart');
-      if (!ctx || history.length < 2) return;
+    // ==========================================
+    // UI FAST UPDATER
+    // ==========================================
+    function updateStats() {
+      const undoBtn = document.getElementById('undo-btn-container');
+      const metricLabelEl = document.getElementById('metric-label');
+      const metricValueEl = document.getElementById('metric-value');
+      const roundsEl = document.getElementById('rounds-display');
 
-      const chronological = [...history].reverse();
-      const labels = chronological.map(h => h.date.split(' ')[0]);
-      const data = chronological.map(h => parseFloat(h.bpr) || 0);
+      if (appMode === 'bull') {
+        const scoreEl = document.getElementById('score-display');
+        if (scoreEl) scoreEl.innerText = getTotalBulls();
+        if (roundsEl) roundsEl.innerText = rounds.length;
+        if (undoBtn) undoBtn.innerHTML = rounds.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : '';
 
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            data: data,
-            borderColor: '#3b82f6', 
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            borderWidth: 3,
-            pointBackgroundColor: '#ffffff',
-            pointRadius: 4,
-            fill: true,
-            tension: 0.3
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af' } },
-            x: { grid: { display: false }, ticks: { color: '#9ca3af', maxTicksLimit: 5 } }
+        if (metricLabelEl && metricValueEl) {
+          if (metricMode === 0) {
+            metricLabelEl.innerText = "BPR";
+            metricValueEl.innerText = getBPR();
+            metricValueEl.className = "text-white text-3xl ml-2 font-bold";
+          } else {
+            metricLabelEl.innerText = "";
+            metricValueEl.innerText = "—";
+            metricValueEl.className = "text-gray-700 text-3xl ml-2 font-bold";
           }
         }
-      });
-    };
+      } 
+      else if (appMode === 'cricket') {
+        const state = getCricketState();
+        const activeTargetEl = document.getElementById('cricket-target-display');
+        const activeMarksEl = document.getElementById('cricket-marks-display');
+        
+        if (activeTargetEl) activeTargetEl.innerText = cricketTargets[state.currentIdx] || 'DONE';
+        if (activeMarksEl) activeMarksEl.innerText = `${state.targetMarks[state.currentIdx] || 0} / 10`;
+        if (roundsEl) roundsEl.innerText = cricketRounds.length;
+        if (undoBtn) undoBtn.innerHTML = cricketRounds.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : '';
 
+        if (metricLabelEl && metricValueEl) {
+          if (metricMode === 0) {
+            metricLabelEl.innerText = "MPR";
+            metricValueEl.innerText = getCricketMPR();
+            metricValueEl.className = "text-purple-400 text-3xl ml-2 font-bold";
+          } else {
+            metricLabelEl.innerText = "";
+            metricValueEl.innerText = "—";
+            metricValueEl.className = "text-gray-700 text-3xl ml-2 font-bold";
+          }
+        }
+      }
+    }
+
+    // ==========================================
+    // CHARTS
+    // ==========================================
     window.renderSessionChart = () => {
       const ctx = document.getElementById('sessionChart');
-      if (!ctx || rounds.length === 0) return;
+      if (!ctx) return;
 
-      const labels = rounds.map((_, i) => i + 1);
-
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            data: rounds,
-            borderColor: '#a855f7', 
-            backgroundColor: 'rgba(168, 85, 247, 0.1)',
-            borderWidth: 2,
-            pointBackgroundColor: '#fff',
-            pointRadius: 2,
-            fill: true,
-            tension: 0.3 
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            y: { min: 0, max: 3, ticks: { stepSize: 1, color: '#9ca3af' }, grid: { color: '#1f2937' } },
-            x: { grid: { display: false }, ticks: { color: '#9ca3af', maxTicksLimit: 10 } }
-          }
-        }
-      });
-    };
-
-    window.toggleMicroChart = (index) => {
-      const container = document.getElementById(`chart-container-${index}`);
-      container.classList.toggle('hidden');
-      
-      // If we are showing it, render the chart (only once)
-      if (!container.classList.contains('hidden')) {
-        const canvasId = `microChart-${index}`;
-        // Prevent re-initializing the same chart which causes errors
-        if (Chart.getChart(canvasId)) return;
-
-        const session = history[index];
-        const rawData = session.rawRounds || session.rawVisits; // backwards compatibility
-        if (!rawData) return;
-
-        const ctx = document.getElementById(canvasId);
-        const labels = rawData.map((_, i) => i + 1);
-
+      if (appMode === 'bull' && rounds.length > 0) {
         new Chart(ctx, {
           type: 'line',
           data: {
-            labels: labels,
+            labels: rounds.map((_, i) => i + 1),
             datasets: [{
-              data: rawData,
-              borderColor: '#a855f7', 
-              backgroundColor: 'rgba(168, 85, 247, 0.1)',
-              borderWidth: 2,
-              pointBackgroundColor: '#fff',
-              pointRadius: 2,
-              fill: true,
-              tension: 0.3 
+              data: rounds, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              borderWidth: 2, pointBackgroundColor: '#fff', pointRadius: 2, fill: true, tension: 0.3 
             }]
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
             scales: {
               y: { min: 0, max: 3, ticks: { stepSize: 1, color: '#9ca3af' }, grid: { color: '#1f2937' } },
               x: { grid: { display: false }, ticks: { color: '#9ca3af', maxTicksLimit: 10 } }
             }
           }
         });
+      } 
+      else if (appMode === 'cricket' && cricketRounds.length > 0) {
+        const state = getCricketState();
+        const mprData = state.targetMarks.map((m, i) => state.targetRounds[i] ? (m / state.targetRounds[i]).toFixed(2) : 0);
+        
+        new Chart(ctx, {
+          type: 'radar',
+          data: {
+            labels: cricketTargets,
+            datasets: [{
+              data: mprData, borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.3)',
+              pointBackgroundColor: '#fff', borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+            scales: {
+              r: {
+                angleLines: { color: '#374151' }, grid: { color: '#374151' },
+                pointLabels: { color: '#d1d5db', font: { size: 14 } },
+                ticks: { display: false, min: 0 }
+              }
+            }
+          }
+        });
       }
     };
 
-    // --- MAIN SCREEN RENDERING ---
+    window.toggleMicroChart = (index) => {
+      const container = document.getElementById(`chart-container-${index}`);
+      container.classList.toggle('hidden');
+      if (!container.classList.contains('hidden') && !Chart.getChart(`microChart-${index}`)) {
+        const ctx = document.getElementById(`microChart-${index}`);
+        
+        if (appMode === 'bull') {
+          const rawData = history[index].rawRounds || history[index].rawVisits;
+          new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: rawData.map((_, i) => i + 1),
+              datasets: [{
+                data: rawData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 2, pointBackgroundColor: '#fff', pointRadius: 2, fill: true, tension: 0.3 
+              }]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+              scales: { y: { min: 0, max: 3, ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } }, x: { display: false } }
+            }
+          });
+        } 
+        else {
+          const session = cricketHistory[index];
+          const mprData = session.targetMarks.map((m, i) => session.targetRounds[i] ? (m / session.targetRounds[i]).toFixed(2) : 0);
+          new Chart(ctx, {
+            type: 'radar',
+            data: {
+              labels: cricketTargets,
+              datasets: [{
+                data: mprData, borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.3)',
+                pointBackgroundColor: '#fff', borderWidth: 2
+              }]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+              scales: {
+                r: { angleLines: { color: '#374151' }, grid: { color: '#374151' }, pointLabels: { color: '#d1d5db' }, ticks: { display: false, min: 0 } }
+              }
+            }
+          });
+        }
+      }
+    };
+
+    // ==========================================
+    // RENDER ENGINE
+    // ==========================================
     const app = document.getElementById('app');
     
     function render() {
+      // -- TOGGLE COMPONENT --
+      const headerToggle = `
+        <div class="flex justify-center mt-2 mb-2 w-full">
+          <div class="bg-gray-900 rounded-full p-1 flex w-64 justify-between">
+            <button onclick="switchMode('bull')" class="${appMode === 'bull' ? 'bg-gray-700 text-white' : 'text-gray-500'} w-1/2 py-2 rounded-full text-xs font-bold transition-colors">BULL RACE</button>
+            <button onclick="switchMode('cricket')" class="${appMode === 'cricket' ? 'bg-gray-700 text-white' : 'text-gray-500'} w-1/2 py-2 rounded-full text-xs font-bold transition-colors">CRICKET SPRINT</button>
+          </div>
+        </div>
+      `;
+
       if (currentView === 'practice') {
+        const bullGrid = `
+          <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-4 px-4 pb-6">
+            <button ontouchstart="tapBull(0, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">0</button>
+            <button ontouchstart="tapBull(1, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">1</button>
+            <button ontouchstart="tapBull(2, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">2</button>
+            <button ontouchstart="tapBull(3, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">3</button>
+          </div>
+        `;
+
+        const cricketGrid = `
+          <div class="flex-1 grid grid-cols-3 grid-rows-4 gap-3 px-4 pb-6">
+            ${[1,2,3,4,5,6,7,8,9].map(n => `<button ontouchstart="tapCricket(${n}, this)" class="btn-target border border-white/20 rounded-2xl flex items-center justify-center text-[3.5rem] font-bold text-gray-200">${n}</button>`).join('')}
+            <div></div>
+            <button ontouchstart="tapCricket(0, this)" class="btn-target border border-white/20 rounded-2xl flex items-center justify-center text-[3.5rem] font-bold text-gray-200">0</button>
+            <div></div>
+          </div>
+        `;
+
         app.innerHTML = `
-          <div class="flex justify-between px-6 py-4 text-gray-500 font-medium">
+          <div class="flex justify-between px-6 py-2 text-gray-500 font-medium z-10 relative">
             <button onclick="endSession()" class="active:text-white">End Session</button>
             <button onclick="toggleInsights()" class="active:text-white">Insights</button>
           </div>
+          ${headerToggle}
           
-          <div class="flex-none flex flex-col items-center justify-center py-4">
-            <div class="text-gray-500 text-sm mb-1 uppercase tracking-widest">Bull / Target</div>
-            <div class="text-[clamp(3rem,15vw,6rem)] font-bold leading-none flex items-center justify-center w-full whitespace-nowrap tracking-tight px-2">
-              <span id="score-display">${getTotalBulls()}</span>
-              <span class="mx-3 text-gray-700">/</span>
-              <input type="number" value="${target}" onchange="updateTarget(event)" class="text-center p-0 m-0 text-white" />
-            </div>
+          <div class="flex-none flex flex-col items-center justify-center py-2 h-40">
+            ${appMode === 'bull' ? `
+              <div class="text-gray-500 text-sm mb-1 uppercase tracking-widest">Bull / Target</div>
+              <div class="text-[clamp(3rem,15vw,6rem)] font-bold leading-none flex items-center justify-center w-full whitespace-nowrap tracking-tight px-2">
+                <span id="score-display">0</span>
+                <span class="mx-3 text-gray-700">/</span>
+                <input type="number" value="${target}" onchange="updateTarget(event)" class="text-center p-0 m-0 text-white" />
+              </div>
+            ` : `
+              <div class="text-gray-500 text-sm mb-1 uppercase tracking-widest">Target</div>
+              <div class="text-[clamp(3rem,15vw,6rem)] font-bold leading-none flex items-center justify-center w-full whitespace-nowrap tracking-tight px-2 text-purple-400">
+                <span id="cricket-target-display">20</span>
+              </div>
+              <div class="text-gray-400 mt-2">Marks: <span id="cricket-marks-display" class="text-white font-bold">0 / 10</span></div>
+            `}
           </div>
           
           <div class="flex justify-between items-end px-6 pb-4 text-gray-500">
-            <div>Rounds <span id="rounds-display" class="text-white text-3xl ml-2 font-bold">${rounds.length}</span></div>
+            <div>Rounds <span id="rounds-display" class="text-white text-3xl ml-2 font-bold">0</span></div>
             <div class="flex items-end gap-6">
-              <div id="undo-btn-container">${rounds.length > 0 ? `<button onclick="undoLast()" class="text-sm underline mb-1 active:text-white">Undo</button>` : ''}</div>
+              <div id="undo-btn-container"></div>
               <div onclick="cycleMetric()" class="cursor-pointer active:opacity-70 flex items-end min-h-[40px]">
-                <span id="metric-label" class="text-gray-500 text-sm mb-1">BPR</span> 
+                <span id="metric-label" class="text-gray-500 text-sm mb-1">${appMode === 'bull' ? 'BPR' : 'MPR'}</span> 
                 <span id="metric-value" class="text-white text-3xl ml-2 font-bold">0.00</span>
               </div>
             </div>
           </div>
           
-          <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-4 px-4 pb-6">
-            <button ontouchstart="tapButton(0, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">0</button>
-            <button ontouchstart="tapButton(1, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">1</button>
-            <button ontouchstart="tapButton(2, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">2</button>
-            <button ontouchstart="tapButton(3, this)" class="btn-target border border-white/20 rounded-3xl flex items-center justify-center text-[5rem] font-bold">3</button>
-          </div>
+          ${appMode === 'bull' ? bullGrid : cricketGrid}
         `;
         updateStats();
       } 
@@ -374,23 +535,20 @@
         app.innerHTML = `
           <div class="flex-1 scrollable flex flex-col items-center p-8 text-center bg-black">
             <h1 class="text-3xl font-bold mb-4 text-white">Session Summary</h1>
-            <div class="text-gray-500 mb-6 font-medium bg-gray-900 px-4 py-2 rounded-full text-sm">⏱️ ${sessionStartTime ? formatTime(Math.floor((Date.now() - sessionStartTime) / 1000)) : history[0]?.duration}</div>
             
             <div class="space-y-3 text-lg text-gray-400 w-full max-w-xs mb-6">
-              <div class="flex justify-between border-b border-gray-800 pb-2"><span>Bulls:</span> <span class="text-white font-bold">${getTotalBulls()} / ${target}</span></div>
-              <div class="flex justify-between border-b border-gray-800 pb-2"><span>Rounds:</span> <span class="text-white font-bold">${rounds.length}</span></div>
-              <div class="flex justify-between border-b border-gray-800 pb-2"><span>BPR:</span> <span class="text-white font-bold">${getBPR()}</span></div>
-              
-              <div class="mt-4 pt-4 text-xs uppercase tracking-widest text-gray-600">Breakdown</div>
-              <div class="grid grid-cols-4 gap-2 text-center text-sm mt-2">
-                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-[10px]">0s</div><div class="text-red-400 font-bold">${getCount(0)}</div></div>
-                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-[10px]">1s</div><div class="text-green-400 font-bold">${getCount(1)}</div></div>
-                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-[10px]">2s</div><div class="text-blue-400 font-bold">${getCount(2)}</div></div>
-                <div class="bg-gray-900 rounded py-2"><div class="text-gray-500 text-[10px]">3s</div><div class="text-purple-400 font-bold">${getCount(3)}</div></div>
-              </div>
+              ${appMode === 'bull' ? `
+                <div class="flex justify-between border-b border-gray-800 pb-2"><span>Bulls:</span> <span class="text-white font-bold">${getTotalBulls()} / ${target}</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-2"><span>Rounds:</span> <span class="text-white font-bold">${rounds.length}</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-2"><span>BPR:</span> <span class="text-white font-bold">${getBPR()}</span></div>
+              ` : `
+                <div class="flex justify-between border-b border-gray-800 pb-2"><span>Status:</span> <span class="text-purple-400 font-bold">70 Marks Cleared</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-2"><span>Total Rounds:</span> <span class="text-white font-bold">${cricketRounds.length}</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-2"><span>Global MPR:</span> <span class="text-white font-bold">${getCricketMPR()}</span></div>
+              `}
             </div>
 
-            <div class="w-full max-w-xs h-32 mb-8">
+            <div class="w-full max-w-xs h-48 mb-8">
               <canvas id="sessionChart"></canvas>
             </div>
 
@@ -400,63 +558,66 @@
         setTimeout(window.renderSessionChart, 0);
       } 
       else if (currentView === 'insights') {
+        const activeHistory = appMode === 'bull' ? history : cricketHistory;
+        
         app.innerHTML = `
-          <div class="flex justify-between items-center px-6 py-5 bg-black z-10">
+          <div class="flex justify-between items-center px-6 py-4 bg-black z-10 border-b border-gray-800">
             <button onclick="toggleInsights()" class="text-blue-500 font-medium text-lg active:text-blue-400">&larr; Back</button>
             <span class="font-bold text-xl text-white">Insights</span>
             <div class="w-12"></div>
           </div>
+          <div class="bg-black pt-2 border-b border-gray-800">
+            ${headerToggle}
+          </div>
           
-          <div class="flex-1 scrollable bg-black">
-            <div class="px-4 py-2 mb-4 border-b border-gray-800">
-              ${history.length > 1 
-                ? '<div class="h-48 w-full"><canvas id="bprChart"></canvas></div>' 
-                : '<div class="h-32 flex items-center justify-center text-gray-600 text-sm">Need at least 2 sessions to show trend graph.</div>'}
-            </div>
-
-            <div class="px-4 pb-10 space-y-4">
-              ${history.length === 0 ? '<div class="text-center text-gray-500 mt-8 text-lg">No sessions recorded yet.</div>' :
-                history.map((h, index) => `
-                  <div class="bg-gray-900 rounded-2xl p-5 border border-gray-800 relative">
-                    
-                    <div class="flex justify-between items-start mb-3 border-b border-gray-800 pb-3">
-                      <div class="text-sm text-gray-400">${h.date} &nbsp;·&nbsp; ⏱️ ${h.duration || '-'}</div>
-                      <button onclick="deleteRecord(${index})" class="text-red-900 font-bold active:text-red-500 text-sm px-3 py-1 bg-gray-950 rounded">X</button>
-                    </div>
-                    
-                    <div class="flex justify-between items-center mb-4">
-                      <div>
-                        <div class="text-4xl font-bold text-white">${h.bpr || '0.00'} <span class="text-sm font-normal text-gray-500">BPR</span></div>
-                        <div class="text-sm text-gray-400 mt-1">${h.bulls}/${h.target} Bulls in ${h.rounds || h.visits} rounds</div>
+          <div class="flex-1 scrollable bg-black px-4 pb-10 pt-6 space-y-4">
+            ${activeHistory.length === 0 ? '<div class="text-center text-gray-500 mt-8 text-lg">No sessions recorded.</div>' :
+              activeHistory.map((h, index) => `
+                <div class="bg-gray-900 rounded-2xl p-5 border border-gray-800 relative">
+                  
+                  <div class="flex justify-between items-start mb-3 border-b border-gray-800 pb-3">
+                    <div class="text-sm text-gray-400">${h.date} &nbsp;·&nbsp; ⏱️ ${h.duration || '-'}</div>
+                    <button onclick="deleteRecord(${index})" class="text-red-900 font-bold active:text-red-500 text-sm px-3 py-1 bg-gray-950 rounded">X</button>
+                  </div>
+                  
+                  <div class="flex justify-between items-center mb-4">
+                    <div>
+                      <div class="text-4xl font-bold ${appMode === 'bull' ? 'text-white' : 'text-purple-400'}">
+                        ${appMode === 'bull' ? (h.bpr || '0.00') : (h.mpr || '0.00')} 
+                        <span class="text-sm font-normal text-gray-500">${appMode === 'bull' ? 'BPR' : 'MPR'}</span>
                       </div>
-                      ${(h.rawRounds || h.rawVisits) ? `
-                        <button onclick="toggleMicroChart(${index})" class="text-purple-400 text-sm font-medium bg-purple-900/30 px-3 py-2 rounded-lg active:bg-purple-900/50 transition-colors">
-                          📈 Chart
-                        </button>
-                      ` : ''}
+                      <div class="text-sm text-gray-400 mt-1">
+                        ${appMode === 'bull' ? `${h.bulls}/${h.target} Bulls in ${h.rounds || h.visits} rounds` : `70 Marks in ${h.rounds} rounds`}
+                      </div>
                     </div>
-                    
+                    ${(h.rawRounds || h.rawVisits) ? `
+                      <button onclick="toggleMicroChart(${index})" class="text-purple-400 text-sm font-medium bg-purple-900/30 px-3 py-2 rounded-lg active:bg-purple-900/50 transition-colors">
+                        📈 Chart
+                      </button>
+                    ` : ''}
+                  </div>
+                  
+                  ${appMode === 'bull' ? `
                     <div class="flex justify-between text-center text-sm border-t border-gray-800 pt-3">
                       <div><span class="text-gray-500 text-xs block">0s</span> <span class="text-red-400 font-medium">${h.c0 !== undefined ? h.c0 : '-'}</span></div>
                       <div><span class="text-gray-500 text-xs block">1s</span> <span class="text-green-400 font-medium">${h.c1 !== undefined ? h.c1 : '-'}</span></div>
                       <div><span class="text-gray-500 text-xs block">2s</span> <span class="text-blue-400 font-medium">${h.c2 !== undefined ? h.c2 : '-'}</span></div>
                       <div><span class="text-gray-500 text-xs block">3s</span> <span class="text-purple-400 font-medium">${h.c3 !== undefined ? h.c3 : '-'}</span></div>
                     </div>
-                    
-                    ${(h.rawRounds || h.rawVisits) ? `
-                      <div id="chart-container-${index}" class="hidden w-full h-32 mt-4 pt-4 border-t border-gray-800">
-                        <canvas id="microChart-${index}"></canvas>
-                      </div>
-                    ` : ''}
-                    
-                  </div>
-                `).join('')
-              }
-              ${history.length > 0 ? `<button onclick="clearHistory()" class="w-full mt-8 py-4 text-red-500 font-medium text-lg active:text-red-400">Clear All History</button>` : ''}
-            </div>
+                  ` : ''}
+                  
+                  ${(h.rawRounds || h.rawVisits) ? `
+                    <div id="chart-container-${index}" class="hidden w-full ${appMode === 'bull' ? 'h-32' : 'h-48'} mt-4 pt-4 border-t border-gray-800">
+                      <canvas id="microChart-${index}"></canvas>
+                    </div>
+                  ` : ''}
+                  
+                </div>
+              `).join('')
+            }
+            ${activeHistory.length > 0 ? `<button onclick="clearHistory()" class="w-full mt-8 py-4 text-red-500 font-medium text-lg active:text-red-400">Clear All History</button>` : ''}
           </div>
         `;
-        setTimeout(window.renderInsightsChart, 0);
       }
     }
 
