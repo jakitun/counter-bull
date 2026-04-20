@@ -7,7 +7,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-
+  
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
@@ -16,878 +16,617 @@
 
   <style>
     :root {
-      --accent:      #f97316;
-      --accent-dim:  rgba(249,115,22,0.13);
-      --accent-glow: rgba(249,115,22,0.35);
+      --accent: #f97316; /* Bull Orange */
+      --accent-dim: rgba(249, 115, 22, 0.15);
+      --surface: #1e1e24;
     }
     body.mode-cricket {
-      --accent:      #a855f7;
-      --accent-dim:  rgba(168,85,247,0.13);
-      --accent-glow: rgba(168,85,247,0.35);
+      --accent: #a855f7; /* Cricket Purple */
+      --accent-dim: rgba(168, 85, 247, 0.15);
     }
-
     html, body {
-      height: 100%; overscroll-behavior: none; margin: 0;
-      background: #080808; color: white;
-      touch-action: none; user-select: none; overflow: hidden;
+      height: 100%;
+      overscroll-behavior: none;
+      margin: 0;
+      background: #09090b;
+      color: white;
+      touch-action: none;
+      user-select: none;
+      overflow: hidden;
       font-family: 'Rajdhani', sans-serif;
     }
-    input::-webkit-outer-spin-button,
-    input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    input[type="number"] {
-      height: 1.2em; line-height: 1; width: 3ch; outline: none;
-      background: transparent; font-family: 'Bebas Neue', sans-serif;
-      color: var(--accent);
-    }
+    .font-display { font-family: 'Bebas Neue', cursive; letter-spacing: 1px; }
+    
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"], input[type="text"] { background: transparent; outline: none; }
+    
+    .btn-target { 
+      background: var(--surface); 
+      transition: background-color 0.1s ease-out, transform 0.05s; 
+      border: 1px solid rgba(255,255,255,0.05);
+    } 
+    .btn-target:active { transform: scale(0.96); }
 
-    .score-display { font-family: 'Bebas Neue', sans-serif; }
-    .score-hero {
-      font-family: 'Bebas Neue', sans-serif; color: var(--accent);
-      text-shadow: 0 0 48px var(--accent-glow);
-      transition: color 0.4s ease, text-shadow 0.4s ease;
-      display: inline-block;
-    }
-    .stat-label {
-      font-family: 'Rajdhani', sans-serif; font-weight: 600;
-      font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: #6b6b6b;
-    }
-    .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem; line-height: 1; color: white; }
-    .font-label { font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-    .accent-text { color: var(--accent); transition: color 0.4s ease; }
-    .stat-divider { border-color: rgba(255,255,255,0.05); }
-
-    @keyframes score-punch {
-      0%  { transform: scale(1); }
-      35% { transform: scale(1.22); }
-      100%{ transform: scale(1); }
-    }
-    .score-punch { animation: score-punch 0.22s cubic-bezier(0.36,0.07,0.19,0.97) both; }
-
-    @keyframes fade-up {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .view-enter { animation: fade-up 0.25s ease forwards; }
-
-    /* Bull buttons */
-    .btn-tap {
-      background: #0f0f0f; border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 26px; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 6px;
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
-      transition: transform 0.08s ease, border-color 0.12s ease, background 0.12s ease;
-      overflow: hidden;
-    }
-    .btn-tap:active { transform: scale(0.91); border-color: var(--accent); background: var(--accent-dim); }
-    .btn-tap:active .btn-num   { color: var(--accent); }
-    .btn-tap:active .btn-icons { color: var(--accent); opacity: 1; }
-    .btn-num {
-      font-family: 'Bebas Neue', sans-serif; font-size: 4.5rem; line-height: 1; color: white;
-      transition: color 0.12s ease;
-    }
-    .btn-icons {
-      display: flex; gap: 3px; align-items: center;
-      color: rgba(255,255,255,0.18); transition: color 0.12s ease; min-height: 14px;
-    }
-
-    /* Cricket numpad */
-    .btn-cricket {
-      background: #0f0f0f; border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 18px; display: flex; align-items: center; justify-content: center;
-      font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; color: #c9cdd4;
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
-      transition: transform 0.08s ease, border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
-      overflow: hidden;
-    }
-    .btn-cricket:active { transform: scale(0.91); border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
-
-    /* Flash classes */
-    .btn-target   { transition: background-color 0.15s ease-out; }
-    .flash-0      { background-color:#dc2626 !important; border-color:#dc2626 !important; color:#fff !important; transition:none !important; }
-    .flash-1      { background-color:#16a34a !important; border-color:#16a34a !important; color:#fff !important; transition:none !important; }
-    .flash-2      { background-color:#2563eb !important; border-color:#2563eb !important; color:#fff !important; transition:none !important; }
-    .flash-3      { background-color:var(--accent) !important; border-color:var(--accent) !important; color:#000 !important; transition:none !important; }
-    .flash-c-miss { background-color:#dc2626 !important; border-color:#dc2626 !important; color:#fff !important; transition:none !important; }
-    .flash-c-hit  { background-color:var(--accent) !important; border-color:var(--accent) !important; color:#000 !important; transition:none !important; }
-
-    /* Mode toggle */
-    .mode-toggle {
-      background: #0f0f0f; border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 9999px; padding: 4px; display: flex;
-    }
-    .mode-btn {
-      flex: 1; padding: 7px 10px; border-radius: 9999px;
-      font-family: 'Rajdhani', sans-serif; font-weight: 700;
-      font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase;
-      color: #4b5563; background: transparent; border: none; cursor: pointer;
-      transition: background-color 0.35s ease, color 0.35s ease;
-      -webkit-tap-highlight-color: transparent; white-space: nowrap;
-    }
-    .mode-btn.active { background: var(--accent); color: #000; }
-
-    /* Cricket target pills */
-    .target-pills {
-      display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 6px;
-      scrollbar-width: none; -ms-overflow-style: none; touch-action: pan-x;
-    }
-    .target-pills::-webkit-scrollbar { display: none; }
-    .target-pill {
-      flex-shrink: 0; padding: 5px 14px; border-radius: 9999px;
-      border: 1px solid rgba(255,255,255,0.1); background: #0f0f0f;
-      font-family: 'Bebas Neue', sans-serif; font-size: 1.05rem; color: #6b6b6b;
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
-      transition: background 0.2s, color 0.2s, border-color 0.2s;
-    }
-    .target-pill.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
-
-    /* Cards */
-    .insight-card {
-      background: #0f0f0f; border: 1px solid rgba(255,255,255,0.06); border-radius: 22px; padding: 18px;
-    }
-    .profile-stat {
-      background: #161616; border: 1px solid rgba(255,255,255,0.05);
-      border-radius: 14px; padding: 10px 8px; text-align: center; flex: 1;
-    }
-
-    /* Settings modal */
-    .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 100;
-      display: flex; align-items: flex-end; padding-bottom: env(safe-area-inset-bottom);
-    }
-    .modal-sheet {
-      width: 100%; background: #111; border-radius: 24px 24px 0 0;
-      border-top: 1px solid rgba(255,255,255,0.08); padding: 20px 22px 36px;
-    }
-    .modal-handle { width: 40px; height: 4px; background: #2a2a2a; border-radius: 9999px; margin: 0 auto 18px; }
-    .toggle-row {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 13px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-    .toggle-label { font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 1rem; color: #ccc; }
-    .toggle-sub   { font-size: 0.68rem; color: #4b4b4b; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px; }
-    .ios-toggle   { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
-    .ios-toggle input { opacity: 0; width: 0; height: 0; }
-    .ios-slider {
-      position: absolute; inset: 0; background: #2a2a2a;
-      border-radius: 9999px; transition: background 0.25s; cursor: pointer;
-    }
-    .ios-slider:before {
-      content: ''; position: absolute; width: 20px; height: 20px;
-      left: 3px; top: 3px; background: white; border-radius: 50%; transition: transform 0.25s;
-    }
-    .ios-toggle input:checked + .ios-slider            { background: var(--accent); }
-    .ios-toggle input:checked + .ios-slider:before     { transform: translateX(20px); }
-
-    /* Backup buttons */
-    .backup-btn {
-      flex: 1; padding: 9px 6px; border-radius: 12px;
-      font-family: 'Rajdhani', sans-serif; font-weight: 700;
-      font-size: 0.72rem; letter-spacing: 0.07em; text-transform: uppercase;
-      border: 1px solid rgba(255,255,255,0.08); background: #161616; color: #888;
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
-      transition: background 0.15s, color 0.15s;
-    }
-    .backup-btn:active { background: #1e1e1e; color: white; }
-
-    /* Nickname input */
-    .nickname-input {
-      background: transparent; border: none; border-bottom: 1px solid var(--accent);
-      color: white; font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.8rem; outline: none; text-align: center; width: 200px;
-    }
-
+    .flash-hit { background-color: var(--accent) !important; transition: none !important; color: white !important;} 
+    .flash-miss { background-color: #ef4444 !important; transition: none !important; color: white !important;}
+    
     .scrollable { touch-action: auto; overflow-y: auto; overscroll-behavior: auto; }
+    
+    /* Pop Animation for Hero Number */
+    .score-pop { animation: pop 0.15s ease-out; }
+    @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
   </style>
 </head>
 <body>
   <div id="app" class="h-full flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"></div>
-  <div id="settings-modal" class="modal-overlay hidden"></div>
+
+  <div id="settings-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex flex-col justify-end transition-opacity" onclick="toggleSettings()">
+    <div class="bg-[#18181b] w-full rounded-t-3xl p-6 pb-12 border-t border-gray-800" onclick="event.stopPropagation()">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold font-display text-white tracking-wide">SETTINGS</h2>
+        <button onclick="toggleSettings()" class="text-gray-400 font-bold text-xl p-2">&times;</button>
+      </div>
+      
+      <div class="space-y-4 mb-8">
+        <div class="flex justify-between items-center bg-black/40 p-4 rounded-xl border border-gray-800/50">
+          <span class="text-lg font-semibold text-gray-300">Target Score (Bull)</span>
+          <input type="number" id="setting-target" value="50" onchange="updateSettings('target', this.value)" class="w-16 text-right text-2xl font-bold text-white bg-transparent border-b border-gray-700 focus:border-[var(--accent)]" />
+        </div>
+        
+        <div class="flex justify-between items-center bg-black/40 p-4 rounded-xl border border-gray-800/50">
+          <span class="text-lg font-semibold text-gray-300">Audio Beeps</span>
+          <button onclick="updateSettings('audio', !appSettings.audio)" id="toggle-audio" class="w-16 py-1 rounded font-bold text-sm ${appSettings.audio ? 'bg-[var(--accent)] text-white' : 'bg-gray-700 text-gray-400'}">ON</button>
+        </div>
+
+        <div class="flex justify-between items-center bg-black/40 p-4 rounded-xl border border-gray-800/50">
+          <span class="text-lg font-semibold text-gray-300">Haptics (Android)</span>
+          <button onclick="updateSettings('haptics', !appSettings.haptics)" id="toggle-haptics" class="w-16 py-1 rounded font-bold text-sm">ON</button>
+        </div>
+
+        <div class="flex justify-between items-center bg-black/40 p-4 rounded-xl border border-gray-800/50">
+          <span class="text-lg font-semibold text-gray-300">Zen Mode (Hide Stats)</span>
+          <button onclick="updateSettings('zen', !appSettings.zen)" id="toggle-zen" class="w-16 py-1 rounded font-bold text-sm">OFF</button>
+        </div>
+        
+        <div class="flex justify-between items-center bg-black/40 p-4 rounded-xl border border-gray-800/50">
+          <span class="text-lg font-semibold text-gray-300">Show Round Counter</span>
+          <button onclick="updateSettings('showRounds', !appSettings.showRounds)" id="toggle-rounds" class="w-16 py-1 rounded font-bold text-sm">ON</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
-    /* ══════════════════════════════════════════
-       SVG ICONS
-    ══════════════════════════════════════════ */
-    var DART_SVG = '<svg viewBox="0 0 48 20" width="32" height="13" xmlns="http://www.w3.org/2000/svg">'
-      + '<polygon points="0,10 8,7 8,13" fill="currentColor"/>'
-      + '<rect x="8" y="8.5" width="21" height="3" rx="1.5" fill="currentColor"/>'
-      + '<rect x="29" y="9.5" width="7" height="1.5" fill="currentColor" opacity="0.55"/>'
-      + '<polygon points="36,5 48,10 36,15 39.5,10" fill="currentColor" opacity="0.4"/>'
-      + '</svg>';
-    var MISS_SVG = '<svg viewBox="0 0 22 22" width="20" height="20" xmlns="http://www.w3.org/2000/svg">'
-      + '<line x1="4" y1="4" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>'
-      + '<line x1="18" y1="4" x2="4" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>'
-      + '</svg>';
-    var GEAR_SVG = '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
-    var PENCIL_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
-
-    function dartIcons(n) {
-      if (n === 0) return MISS_SVG;
-      var out = '';
-      for (var i = 0; i < n; i++) out += DART_SVG;
-      return out;
-    }
-
-    /* ══════════════════════════════════════════
-       SETTINGS
-    ══════════════════════════════════════════ */
-    var settings = {
-      audio:      JSON.parse(localStorage.getItem('s_audio')   !== null ? localStorage.getItem('s_audio')   : 'true'),
-      haptics:    JSON.parse(localStorage.getItem('s_haptics') !== null ? localStorage.getItem('s_haptics') : 'true'),
-      zenMode:    JSON.parse(localStorage.getItem('s_zen')     !== null ? localStorage.getItem('s_zen')     : 'false'),
-      showRounds: JSON.parse(localStorage.getItem('s_rounds')  !== null ? localStorage.getItem('s_rounds')  : 'true')
+    // --- GLOBAL STATE & CONFIG ---
+    let appSettings = JSON.parse(localStorage.getItem('ocheSettings')) || {
+      target: 50, audio: true, haptics: true, zen: false, showRounds: true, nickname: 'Player 1'
     };
-    function saveSettings() {
-      localStorage.setItem('s_audio',   settings.audio);
-      localStorage.setItem('s_haptics', settings.haptics);
-      localStorage.setItem('s_zen',     settings.zenMode);
-      localStorage.setItem('s_rounds',  settings.showRounds);
-    }
+    
+    let currentView = 'practice';
+    let appMode = localStorage.getItem('appMode') || 'bull'; // 'bull' or 'cricket'
+    let lastTapTime = 0;
+    let sessionStartTime = null; 
+    let activeCharts = {}; // Registry to prevent Chart.js crashes
 
-    /* ══════════════════════════════════════════
-       AUDIO
-    ══════════════════════════════════════════ */
-    var audioCtx = null;
+    // Bull Data
+    let rounds = [];
+    let history = JSON.parse(localStorage.getItem('ocheHistory')) || [];
+
+    // Cricket Data
+    let cricketTarget = localStorage.getItem('cricketTarget') || '20';
+    let cricketRounds = [];
+    let cricketHistory = JSON.parse(localStorage.getItem('ocheCricketHistory')) || [];
+
+    // --- INITIALIZATION ---
+    if(appMode === 'cricket') document.body.classList.add('mode-cricket');
+    
+    // --- AUDIO & HAPTICS ---
+    let audioCtx;
     function initAudio() {
+      if (!appSettings.audio) return;
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') audioCtx.resume();
     }
-    function beep(freq, delay, duration) {
-      if (delay    === undefined) delay    = 0;
-      if (duration === undefined) duration = 0.1;
-      if (!audioCtx || !settings.audio) return;
-      var osc  = audioCtx.createOscillator();
-      var gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      var t = audioCtx.currentTime + delay;
+    
+    function triggerHaptic() {
+      if (appSettings.haptics && navigator.vibrate) navigator.vibrate(40);
+    }
+
+    function beep(freq, delay = 0, duration = 0.1) {
+      if (!appSettings.audio || !audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
+      const t = audioCtx.currentTime + delay;
       osc.start(t);
       gain.gain.setValueAtTime(1, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
       osc.stop(t + duration);
     }
-    function playSound(v) {
-      if (v === 0) { beep(200); }
-      if (v === 1) { beep(300); }
-      if (v === 2) { beep(400); beep(400, 0.15); }
-      if (v === 3) { beep(500); beep(500, 0.10); beep(500, 0.20); }
-    }
-    function playCricketSound(marks) {
-      if (marks === 0)        { beep(200); }
-      else if (marks <= 3)    { beep(300 + marks * 50); }
-      else if (marks <= 6)    { beep(400); beep(500, 0.15); }
-      else                    { beep(500); beep(600, 0.10); beep(700, 0.20); }
-    }
-    function playRewardSound() {
-      beep(440, 0.00, 0.12);
-      beep(554, 0.15, 0.12);
-      beep(659, 0.30, 0.22);
-      beep(880, 0.52, 0.35);
-    }
-    function haptic(ms) {
-      if (!ms) ms = 40;
-      if (settings.haptics && navigator.vibrate) navigator.vibrate(ms);
+
+    function playSound(marks) {
+      if (marks === 0) beep(200);
+      else if (marks === 1) beep(300);
+      else if (marks === 2) { beep(400); beep(400, 0.15); }
+      else if (marks === 3) { beep(500); beep(500, 0.10); beep(500, 0.20); }
+      else if (marks <= 6) { beep(400); beep(500, 0.15); }
+      else { beep(500); beep(600, 0.10); beep(700, 0.20); }
     }
 
-    /* ══════════════════════════════════════════
-       APP STATE
-    ══════════════════════════════════════════ */
-    var currentView      = 'practice';
-    var appMode          = localStorage.getItem('appMode') || 'bull';
-    var lastTapTime      = 0;
-    var sessionStartTime = null;
-    var nickname         = localStorage.getItem('nickname') || 'Player 1';
-    var editingNickname  = false;
-
-    // Bull
-    var rounds  = [];
-    var target  = parseInt(localStorage.getItem('defaultTarget')) || 50;
-    var history = JSON.parse(localStorage.getItem('ocheHistory')) || [];
-
-    // Cricket Target Lock
-    var CRICKET_TARGETS    = ['20','19','18','17','16','15','BULL'];
-    var CRICKET_MAX_ROUNDS = 10;
-    var cricketTarget  = localStorage.getItem('cricketTarget') || '20';
-    var cricketRounds  = [];   // plain numbers
-    var cricketHistory = JSON.parse(localStorage.getItem('ocheCricketHistory')) || [];
-
-    function formatTime(s) { return Math.floor(s/60) + 'm ' + (s % 60) + 's'; }
-    function applyModeClass() { document.body.classList.toggle('mode-cricket', appMode === 'cricket'); }
-    applyModeClass();
-
-    /* ══════════════════════════════════════════
-       ALL-TIME STATS
-    ══════════════════════════════════════════ */
-    function getAllTimeBPR() {
-      if (!history.length) return '\u2014';
-      var bulls = 0, rds = 0;
-      for (var i = 0; i < history.length; i++) { bulls += (history[i].bulls || 0); rds += (history[i].rounds || 0); }
-      return rds ? (bulls / rds).toFixed(2) : '\u2014';
-    }
-    function getAllTimeMPR() {
-      if (!cricketHistory.length) return '\u2014';
-      var marks = 0, rds = 0;
-      for (var i = 0; i < cricketHistory.length; i++) { marks += (cricketHistory[i].totalMarks || 0); rds += (cricketHistory[i].rounds || 0); }
-      return rds ? (marks / rds).toFixed(2) : '\u2014';
-    }
-    function getTotalRoundsAll() {
-      var b = 0, c = 0;
-      for (var i = 0; i < history.length; i++)        b += (history[i].rounds || 0);
-      for (var j = 0; j < cricketHistory.length; j++) c += (cricketHistory[j].rounds || 0);
-      return b + c;
-    }
-
-    /* ══════════════════════════════════════════
-       LOGARITHMIC REGRESSION  y = a·ln(x) + b
-    ══════════════════════════════════════════ */
-    function logRegression(data) {
-      var n = data.length;
-      if (n < 3) return null;
-      var sumLnX = 0, sumY = 0, sumLnXY = 0, sumLnX2 = 0;
-      for (var i = 0; i < n; i++) {
-        var lnx  = Math.log(i + 1);
-        sumLnX  += lnx;
-        sumY    += data[i];
-        sumLnXY += lnx * data[i];
-        sumLnX2 += lnx * lnx;
+    // --- MATH & STATS HELPERS ---
+    const formatTime = (sec) => `${Math.floor(sec / 60)}m ${sec % 60}s`;
+    
+    // Logarithmic Regression: y = a + b*ln(x)
+    function calcLogTrendline(dataArray) {
+      const n = dataArray.length;
+      if (n < 2) return dataArray;
+      let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+      for (let i = 0; i < n; i++) {
+        let x = Math.log(i + 1); // x must be > 0
+        let y = parseFloat(dataArray[i]) || 0;
+        sumX += x; sumY += y; sumXY += x * y; sumXX += x * x;
       }
-      var denom = n * sumLnX2 - sumLnX * sumLnX;
-      if (denom === 0) return null;
-      var a = (n * sumLnXY - sumLnX * sumY) / denom;
-      var b = (sumY - a * sumLnX) / n;
-      var out = [];
-      for (var j = 0; j < n; j++) out.push(parseFloat((a * Math.log(j + 1) + b).toFixed(3)));
-      return out;
-    }
-    function makeTrendDataset(data, hex) {
-      var trend = logRegression(data);
-      if (!trend) return null;
-      return { data: trend, borderColor: hex, backgroundColor: 'transparent',
-               borderWidth: 1.5, borderDash: [5, 5], pointRadius: 0,
-               fill: false, tension: 0, order: 1 };
+      let b = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+      let a = (sumY - b * sumX) / n;
+      return dataArray.map((_, i) => a + b * Math.log(i + 1));
     }
 
-    /* ══════════════════════════════════════════
-       MODE SWITCH
-    ══════════════════════════════════════════ */
-    window.switchMode = function(mode) {
-      if (rounds.length > 0 || cricketRounds.length > 0) {
-        if (!confirm('Switching modes will discard your current session. Continue?')) return;
-      }
+    function getAllTimeStats() {
+      let totalBullRounds = 0, totalBulls = 0;
+      history.forEach(h => { totalBullRounds += h.rounds; totalBulls += h.bulls; });
+      
+      let totalCricketRounds = 0, totalCricketMarks = 0;
+      cricketHistory.forEach(h => { totalCricketRounds += 10; totalCricketMarks += h.totalMarks; });
+      
+      return {
+        totalRounds: totalBullRounds + totalCricketRounds,
+        allTimeBPR: totalBullRounds ? (totalBulls / totalBullRounds).toFixed(2) : '0.00',
+        allTimeMPR: totalCricketRounds ? (totalCricketMarks / totalCricketRounds).toFixed(2) : '0.00'
+      };
+    }
+
+    // --- SETTINGS & DATA SYNC ---
+    window.toggleSettings = () => {
+      const modal = document.getElementById('settings-modal');
+      modal.classList.toggle('hidden');
+      if (!modal.classList.contains('hidden')) syncSettingsUI();
+    };
+
+    function syncSettingsUI() {
+      document.getElementById('setting-target').value = appSettings.target;
+      const tAudio = document.getElementById('toggle-audio');
+      tAudio.innerText = appSettings.audio ? 'ON' : 'OFF';
+      tAudio.className = `w-16 py-1 rounded font-bold text-sm ${appSettings.audio ? 'bg-[var(--accent)] text-white' : 'bg-gray-700 text-gray-400'}`;
+      
+      const tHap = document.getElementById('toggle-haptics');
+      tHap.innerText = appSettings.haptics ? 'ON' : 'OFF';
+      tHap.className = `w-16 py-1 rounded font-bold text-sm ${appSettings.haptics ? 'bg-[var(--accent)] text-white' : 'bg-gray-700 text-gray-400'}`;
+      
+      const tZen = document.getElementById('toggle-zen');
+      tZen.innerText = appSettings.zen ? 'ON' : 'OFF';
+      tZen.className = `w-16 py-1 rounded font-bold text-sm ${appSettings.zen ? 'bg-[var(--accent)] text-white' : 'bg-gray-700 text-gray-400'}`;
+      
+      const tRounds = document.getElementById('toggle-rounds');
+      tRounds.innerText = appSettings.showRounds ? 'ON' : 'OFF';
+      tRounds.className = `w-16 py-1 rounded font-bold text-sm ${appSettings.showRounds ? 'bg-[var(--accent)] text-white' : 'bg-gray-700 text-gray-400'}`;
+    }
+
+    window.updateSettings = (key, val) => {
+      if(key === 'target') val = parseInt(val) || 50;
+      appSettings[key] = val;
+      localStorage.setItem('ocheSettings', JSON.stringify(appSettings));
+      syncSettingsUI();
+      if(currentView === 'practice') updateStats();
+    };
+
+    window.updateNickname = (val) => {
+      appSettings.nickname = val || 'Player 1';
+      localStorage.setItem('ocheSettings', JSON.stringify(appSettings));
+    };
+
+    // --- EXPORT / IMPORT ---
+    window.exportData = () => {
+      const data = { bull: history, cricket: cricketHistory, settings: appSettings };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+      const a = document.createElement('a');
+      a.setAttribute("href", dataStr);
+      a.setAttribute("download", `oche_backup_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(a); a.click(); a.remove();
+    };
+
+    window.importData = (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (imported.bull) localStorage.setItem('ocheHistory', JSON.stringify(imported.bull));
+          if (imported.cricket) localStorage.setItem('ocheCricketHistory', JSON.stringify(imported.cricket));
+          if (imported.settings) localStorage.setItem('ocheSettings', JSON.stringify(imported.settings));
+          alert("Data restored successfully!");
+          location.reload();
+        } catch (err) { alert("Invalid backup file."); }
+      };
+      reader.readAsText(file);
+    };
+
+    // --- GAME LOGIC ---
+    window.switchMode = (mode) => {
+      if ((rounds.length > 0 || cricketRounds.length > 0) && !confirm('Discard current session?')) return;
       appMode = mode;
       localStorage.setItem('appMode', appMode);
-      rounds = []; cricketRounds = []; sessionStartTime = null;
-      applyModeClass(); render();
+      document.body.className = mode === 'cricket' ? 'mode-cricket' : '';
+      restartSession();
     };
 
-    /* ══════════════════════════════════════════
-       BULL LOGIC
-    ══════════════════════════════════════════ */
-    function getTotalBulls() { var s = 0; for (var i=0;i<rounds.length;i++) s+=rounds[i]; return s; }
-    function getBPR()        { return rounds.length ? (getTotalBulls()/rounds.length).toFixed(2) : '0.00'; }
-    function getCount(v)     { var c=0; for(var i=0;i<rounds.length;i++) if(rounds[i]===v) c++; return c; }
+    window.changeCricketTarget = (val) => {
+      if (cricketRounds.length > 0 && !confirm('Discard current session to change target?')) {
+        document.getElementById('cricket-target-select').value = cricketTarget;
+        return;
+      }
+      cricketTarget = val;
+      localStorage.setItem('cricketTarget', val);
+      restartSession();
+    };
 
-    window.tapBull = function(val, btn) {
-      var now = Date.now();
-      if (now - lastTapTime < 50) return;
+    const getBullTotal = () => rounds.reduce((a, b) => a + b, 0);
+    const getCricketTotal = () => cricketRounds.reduce((a, b) => a + b, 0);
+
+    window.tapButton = (val, btnElement) => {
+      const now = Date.now();
+      if (now - lastTapTime < 50) return; 
       lastTapTime = now;
       if (!sessionStartTime) sessionStartTime = Date.now();
-      initAudio(); playSound(val); haptic(30);
-      if (btn) {
-        btn.classList.add('flash-' + val);
-        setTimeout(function() { btn.classList.remove('flash-' + val); }, 120);
+
+      initAudio(); playSound(val); triggerHaptic();
+
+      if (btnElement) {
+        const flashClass = val === 0 ? 'flash-miss' : 'flash-hit';
+        btnElement.classList.add(flashClass);
+        setTimeout(() => btnElement.classList.remove(flashClass), 100);
       }
-      rounds.push(val);
-      updateStats();
-      if (getTotalBulls() >= target) setTimeout(window.endSession, 150);
-    };
 
-    /* ══════════════════════════════════════════
-       CRICKET TARGET LOCK
-    ══════════════════════════════════════════ */
-    function getTotalMarks() { var s=0; for(var i=0;i<cricketRounds.length;i++) s+=cricketRounds[i]; return s; }
-    function getCricketMPR() { return cricketRounds.length ? (getTotalMarks()/cricketRounds.length).toFixed(2) : '0.00'; }
-
-    window.selectCricketTarget = function(t) {
-      if (cricketRounds.length > 0) {
-        if (!confirm('Changing target will reset the current session. Continue?')) return;
-        cricketRounds = []; sessionStartTime = null;
+      // Pop Animation
+      const hero = document.getElementById('hero-score');
+      if (hero) {
+        hero.classList.remove('score-pop');
+        void hero.offsetWidth; // trigger reflow
+        hero.classList.add('score-pop');
       }
-      cricketTarget = t;
-      localStorage.setItem('cricketTarget', cricketTarget);
-      render();
-    };
-
-    window.tapCricket = function(marks, btn) {
-      var now = Date.now();
-      if (now - lastTapTime < 50) return;
-      if (cricketRounds.length >= CRICKET_MAX_ROUNDS) return;
-      lastTapTime = now;
-      if (!sessionStartTime) sessionStartTime = Date.now();
-      initAudio();
-      var fc = marks === 0 ? 'flash-c-miss' : 'flash-c-hit';
-      if (btn) {
-        btn.classList.add(fc);
-        setTimeout(function() { btn.classList.remove(fc); }, 140);
-      }
-      playCricketSound(marks); haptic(30);
-      cricketRounds.push(marks);
-      updateStats();
-      if (cricketRounds.length >= CRICKET_MAX_ROUNDS) setTimeout(window.endSession, 250);
-    };
-
-    /* ══════════════════════════════════════════
-       SHARED ACTIONS
-    ══════════════════════════════════════════ */
-    window.undoLast = function() {
-      initAudio(); beep(150); haptic(20);
-      if (appMode === 'bull' && rounds.length > 0) {
-        rounds.pop();
-        if (rounds.length === 0) sessionStartTime = null;
-        updateStats();
-      } else if (appMode === 'cricket' && cricketRounds.length > 0) {
-        cricketRounds.pop();
-        if (cricketRounds.length === 0) sessionStartTime = null;
-        updateStats();
-      }
-    };
-
-    window.updateTarget = function(e) {
-      var v = parseInt(e.target.value);
-      if (v > 0) { target = v; localStorage.setItem('defaultTarget', target); }
-    };
-
-    window.endSession = function() {
-      var dur = '0m 0s';
-      var arr = appMode === 'bull' ? rounds : cricketRounds;
-      if (sessionStartTime && arr.length > 0)
-        dur = formatTime(Math.floor((Date.now() - sessionStartTime) / 1000));
-      var d = new Date();
-      var dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-      if (appMode === 'bull' && rounds.length > 0) {
-        history.unshift({ date:dateStr, duration:dur, target:target,
-          bulls:getTotalBulls(), rounds:rounds.length, bpr:getBPR(),
-          c0:getCount(0), c1:getCount(1), c2:getCount(2), c3:getCount(3),
-          rawRounds:rounds.slice() });
-        localStorage.setItem('ocheHistory', JSON.stringify(history));
-      } else if (appMode === 'cricket' && cricketRounds.length > 0) {
-        cricketHistory.unshift({ date:dateStr, duration:dur, target:cricketTarget,
-          mpr:getCricketMPR(), rounds:cricketRounds.length,
-          totalMarks:getTotalMarks(), rawRounds:cricketRounds.slice() });
-        localStorage.setItem('ocheCricketHistory', JSON.stringify(cricketHistory));
-      }
-      sessionStartTime = null;
-      initAudio(); playRewardSound();
-      setTimeout(function() { currentView = 'summary'; render(); }, 750);
-    };
-
-    window.restartSession = function() {
-      rounds = []; cricketRounds = []; sessionStartTime = null;
-      currentView = 'practice'; render();
-    };
-    window.toggleInsights = function() {
-      currentView = currentView === 'insights' ? 'practice' : 'insights'; render();
-    };
-    window.deleteRecord = function(i) {
-      if (!confirm('Delete this session?')) return;
-      if (appMode === 'bull') { history.splice(i,1); localStorage.setItem('ocheHistory', JSON.stringify(history)); }
-      else { cricketHistory.splice(i,1); localStorage.setItem('ocheCricketHistory', JSON.stringify(cricketHistory)); }
-      render();
-    };
-    window.clearHistory = function() {
-      if (!confirm('Clear all history for this mode?')) return;
-      if (appMode === 'bull') { history = []; localStorage.removeItem('ocheHistory'); }
-      else { cricketHistory = []; localStorage.removeItem('ocheCricketHistory'); }
-      render();
-    };
-
-    /* ══════════════════════════════════════════
-       BACKUP
-    ══════════════════════════════════════════ */
-    window.exportBackup = function() {
-      var data = { ocheHistory:history, ocheCricketHistory:cricketHistory,
-        nickname:nickname, appMode:appMode, defaultTarget:target,
-        cricketTarget:cricketTarget, settings:settings };
-      var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'oche-backup-' + new Date().toISOString().slice(0,10) + '.json';
-      a.click();
-    };
-    window.importBackup = function() {
-      var inp = document.createElement('input');
-      inp.type = 'file'; inp.accept = '.json';
-      inp.onchange = function(e) {
-        var file = e.target.files[0]; if (!file) return;
-        var reader = new FileReader();
-        reader.onload = function(ev) {
-          try {
-            var data = JSON.parse(ev.target.result);
-            if (data.ocheHistory)        { history = data.ocheHistory; localStorage.setItem('ocheHistory', JSON.stringify(history)); }
-            if (data.ocheCricketHistory) { cricketHistory = data.ocheCricketHistory; localStorage.setItem('ocheCricketHistory', JSON.stringify(cricketHistory)); }
-            if (data.nickname)           { nickname = data.nickname; localStorage.setItem('nickname', nickname); }
-            if (data.settings)           { for (var k in data.settings) settings[k] = data.settings[k]; saveSettings(); }
-            alert('Backup restored!'); render();
-          } catch(err) { alert('Invalid backup file.'); }
-        };
-        reader.readAsText(file);
-      };
-      inp.click();
-    };
-
-    /* ══════════════════════════════════════════
-       NICKNAME
-    ══════════════════════════════════════════ */
-    window.startEditNickname = function() {
-      editingNickname = true; render();
-      setTimeout(function() {
-        var inp = document.getElementById('nickname-input');
-        if (inp) { inp.focus(); inp.select(); }
-      }, 50);
-    };
-    window.saveNickname = function(e) {
-      if (e.key === 'Enter' || e.type === 'blur') {
-        var inp = document.getElementById('nickname-input');
-        if (inp) { nickname = inp.value.trim() || 'Player 1'; localStorage.setItem('nickname', nickname); }
-        editingNickname = false; render();
-      }
-    };
-
-    /* ══════════════════════════════════════════
-       SETTINGS MODAL
-    ══════════════════════════════════════════ */
-    function buildToggleRow(label, sub, key) {
-      return '<div class="toggle-row">'
-        + '<div><div class="toggle-label">' + label + '</div><div class="toggle-sub">' + sub + '</div></div>'
-        + '<label class="ios-toggle">'
-        +   '<input type="checkbox" ' + (settings[key] ? 'checked' : '') + ' onchange="toggleSetting(\'' + key + '\',this.checked)">'
-        +   '<span class="ios-slider"></span>'
-        + '</label>'
-        + '</div>';
-    }
-    window.openSettings = function() {
-      var modal = document.getElementById('settings-modal');
-      modal.classList.remove('hidden');
-      modal.innerHTML = '<div class="modal-sheet view-enter" onclick="event.stopPropagation()">'
-        + '<div class="modal-handle"></div>'
-        + '<div class="font-label text-white mb-5" style="font-size:1.05rem">Settings</div>'
-        + buildToggleRow('Audio',         'Tap beep sounds',          'audio')
-        + buildToggleRow('Haptics',       'Vibration on tap',         'haptics')
-        + buildToggleRow('Zen Mode',      'Hide BPR / MPR on screen', 'zenMode')
-        + buildToggleRow('Round Counter', 'Show round count',         'showRounds')
-        + '<button onclick="closeSettings()" class="w-full mt-5 py-4 rounded-2xl font-label text-black text-base" style="background:var(--accent)">Done</button>'
-        + '</div>';
-      modal.onclick = window.closeSettings;
-    };
-    window.toggleSetting = function(key, val) { settings[key] = val; saveSettings(); };
-    window.closeSettings  = function() {
-      document.getElementById('settings-modal').classList.add('hidden');
-      updateStats();
-    };
-
-    /* ══════════════════════════════════════════
-       FAST UPDATER
-    ══════════════════════════════════════════ */
-    function punchScore() {
-      var el = document.getElementById('score-display');
-      if (!el) return;
-      el.classList.remove('score-punch'); void el.offsetWidth; el.classList.add('score-punch');
-    }
-
-    function updateStats() {
-      var undoEl   = document.getElementById('undo-btn-container');
-      var labelEl  = document.getElementById('metric-label');
-      var valueEl  = document.getElementById('metric-value');
-      var roundsEl = document.getElementById('rounds-display');
-      var wrapEl   = document.getElementById('rounds-wrapper');
-      if (wrapEl) wrapEl.style.visibility = settings.showRounds ? 'visible' : 'hidden';
 
       if (appMode === 'bull') {
-        var scoreEl = document.getElementById('score-display');
-        if (scoreEl) {
-          var prev = scoreEl.innerText;
-          scoreEl.innerText = getTotalBulls();
-          if (prev !== scoreEl.innerText) punchScore();
-        }
-        if (roundsEl) roundsEl.innerText = rounds.length;
-        if (undoEl)   undoEl.innerHTML   = rounds.length > 0 ? '<button onclick="undoLast()" class="stat-label" style="color:#6b6b6b">Undo</button>' : '';
-        if (labelEl && valueEl) {
-          if (!settings.zenMode) { labelEl.innerText='BPR'; valueEl.innerText=getBPR(); valueEl.style.color='white'; }
-          else                   { labelEl.innerText='';    valueEl.innerText='\u2014'; valueEl.style.color='#222'; }
-        }
-      } else if (appMode === 'cricket') {
-        var progEl  = document.getElementById('cricket-progress');
-        var marksEl = document.getElementById('marks-running');
-        if (progEl)  progEl.innerText  = cricketRounds.length + ' / ' + CRICKET_MAX_ROUNDS;
-        if (marksEl) marksEl.innerText = getTotalMarks();
-        if (roundsEl) roundsEl.innerText = cricketRounds.length;
-        if (undoEl)   undoEl.innerHTML   = cricketRounds.length > 0 ? '<button onclick="undoLast()" class="stat-label" style="color:#6b6b6b">Undo</button>' : '';
-        if (labelEl && valueEl) {
-          if (!settings.zenMode) { labelEl.innerText='MPR'; valueEl.innerText=getCricketMPR(); valueEl.style.color='var(--accent)'; }
-          else                   { labelEl.innerText='';    valueEl.innerText='\u2014';         valueEl.style.color='#222'; }
-        }
-      }
-    }
-
-    window.cycleMetric = function() { settings.zenMode = !settings.zenMode; saveSettings(); updateStats(); };
-
-    /* ══════════════════════════════════════════
-       CHARTS
-    ══════════════════════════════════════════ */
-    function accentHex() { return appMode === 'bull' ? '#f97316' : '#a855f7'; }
-    function accentBg()  { return appMode === 'bull' ? 'rgba(249,115,22,0.12)' : 'rgba(168,85,247,0.12)'; }
-
-    window.renderSessionChart = function() {
-      var ctx = document.getElementById('sessionChart'); if (!ctx) return;
-      var data = appMode === 'bull' ? rounds : cricketRounds;
-      if (!data.length) return;
-      var ac = accentHex(), abg = accentBg();
-      var ymax = appMode === 'bull' ? 3 : (cricketTarget === 'BULL' ? 6 : 9);
-      var trend = makeTrendDataset(data, ac);
-      var ds = [{ data:data, borderColor:ac, backgroundColor:abg,
-                  borderWidth:2, pointBackgroundColor:'#fff', pointRadius:3,
-                  fill:true, tension:0.3, order:2 }];
-      if (trend) ds.push(trend);
-      var lbls = []; for (var i=0;i<data.length;i++) lbls.push(i+1);
-      new Chart(ctx, { type:'line', data:{ labels:lbls, datasets:ds },
-        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
-          scales:{ y:{min:0,max:ymax,ticks:{stepSize:1,color:'#3f3f3f'},grid:{color:'#151515'}},
-                   x:{grid:{display:false},ticks:{color:'#3f3f3f',maxTicksLimit:10}} } } });
-    };
-
-    window.renderMacroChart = function() {
-      var ctx = document.getElementById('macroChart'); if (!ctx) return;
-      var src   = (appMode === 'bull' ? history : cricketHistory).slice().reverse();
-      if (src.length < 2) return;
-      var vals  = [];
-      for (var i=0;i<src.length;i++) vals.push(parseFloat(appMode==='bull' ? src[i].bpr : src[i].mpr) || 0);
-      var ac = accentHex(), abg = accentBg();
-      var trend = makeTrendDataset(vals, ac);
-      var ds = [{ data:vals, borderColor:ac, backgroundColor:abg,
-                  borderWidth:2, pointBackgroundColor:'#fff', pointRadius:3,
-                  fill:true, tension:0.3, order:2 }];
-      if (trend) ds.push(trend);
-      var lbls = []; for (var j=0;j<src.length;j++) lbls.push(j+1);
-      new Chart(ctx, { type:'line', data:{ labels:lbls, datasets:ds },
-        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
-          scales:{ y:{ticks:{color:'#3f3f3f'},grid:{color:'#151515'}},
-                   x:{grid:{display:false},ticks:{color:'#3f3f3f',maxTicksLimit:8}} } } });
-    };
-
-    window.toggleMicroChart = function(index) {
-      var container = document.getElementById('chart-container-' + index);
-      container.classList.toggle('hidden');
-      if (!container.classList.contains('hidden') && !Chart.getChart('microChart-' + index)) {
-        var ctx  = document.getElementById('microChart-' + index);
-        var h    = appMode === 'bull' ? history[index] : cricketHistory[index];
-        var raw  = h.rawRounds || [];
-        var ac   = accentHex(), abg = accentBg();
-        var ymax = appMode === 'bull' ? 3 : (h.target === 'BULL' ? 6 : 9);
-        var trend = makeTrendDataset(raw, ac);
-        var ds = [{ data:raw, borderColor:ac, backgroundColor:abg,
-                    borderWidth:2, pointBackgroundColor:'#fff', pointRadius:2,
-                    fill:true, tension:0.3, order:2 }];
-        if (trend) ds.push(trend);
-        var lbls = []; for (var k=0;k<raw.length;k++) lbls.push(k+1);
-        new Chart(ctx, { type:'line', data:{ labels:lbls, datasets:ds },
-          options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
-            scales:{ y:{min:0,max:ymax,ticks:{color:'#3f3f3f'},grid:{color:'#151515'}}, x:{display:false} } } });
-      }
-    };
-
-    /* ══════════════════════════════════════════
-       RENDER ENGINE
-    ══════════════════════════════════════════ */
-    var appEl = document.getElementById('app');
-
-    function headerToggleHTML() {
-      return '<div class="flex justify-center mt-2 mb-1 w-full">'
-        + '<div class="mode-toggle" style="width:286px">'
-        +   '<button onclick="switchMode(\'bull\')"    class="mode-btn ' + (appMode==='bull'?'active':'') + '">\uD83C\uDFAF Bull Race</button>'
-        +   '<button onclick="switchMode(\'cricket\')" class="mode-btn ' + (appMode==='cricket'?'active':'') + '">\u29BB CR. COUNT-UP</button>'
-        + '</div>'
-        + '</div>';
-    }
-
-    function render() {
-      applyModeClass();
-
-      /* ── PRACTICE ── */
-      if (currentView === 'practice') {
-        var isBull = cricketTarget === 'BULL';
-
-        var pillsHTML = '<div class="target-pills">'
-          + CRICKET_TARGETS.map(function(t) {
-              return '<button onclick="selectCricketTarget(\'' + t + '\')" class="target-pill' + (cricketTarget===t?' selected':'') + '">' + t + '</button>';
-            }).join('')
-          + '</div>';
-
-        var bullGrid = '<div class="flex-1 grid grid-cols-2 grid-rows-2 gap-3 px-4 pb-6">'
-          + '<button ontouchstart="tapBull(0,this)" class="btn-tap btn-target"><span class="btn-num">0</span><span class="btn-icons">' + dartIcons(0) + '</span></button>'
-          + '<button ontouchstart="tapBull(1,this)" class="btn-tap btn-target"><span class="btn-num">1</span><span class="btn-icons">' + dartIcons(1) + '</span></button>'
-          + '<button ontouchstart="tapBull(2,this)" class="btn-tap btn-target"><span class="btn-num">2</span><span class="btn-icons">' + dartIcons(2) + '</span></button>'
-          + '<button ontouchstart="tapBull(3,this)" class="btn-tap btn-target"><span class="btn-num">3</span><span class="btn-icons">' + dartIcons(3) + '</span></button>'
-          + '</div>';
-
-        var cricketNumpad = '<div class="flex-1 grid grid-cols-3 grid-rows-4 gap-3 px-4 pb-6">'
-          + [1,2,3,4,5,6].map(function(n) {
-              return '<button ontouchstart="tapCricket(' + n + ',this)" class="btn-cricket btn-target">' + n + '</button>';
-            }).join('')
-          + [7,8,9].map(function(n) {
-              return isBull
-                ? '<button class="btn-cricket btn-target" style="opacity:0.1;pointer-events:none">' + n + '</button>'
-                : '<button ontouchstart="tapCricket(' + n + ',this)" class="btn-cricket btn-target">' + n + '</button>';
-            }).join('')
-          + '<div></div>'
-          + '<button ontouchstart="tapCricket(0,this)" class="btn-cricket btn-target">0</button>'
-          + '<div></div>'
-          + '</div>';
-
-        var scoreSection = appMode === 'bull'
-          ? '<div class="stat-label mb-1">Bulls / Target</div>'
-            + '<div class="flex items-baseline justify-center w-full px-2 gap-1">'
-            +   '<span id="score-display" class="score-hero" style="font-size:clamp(3.5rem,14vw,6rem);line-height:1">' + getTotalBulls() + '</span>'
-            +   '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:clamp(2rem,8vw,3.5rem);color:#222;line-height:1">/</span>'
-            +   '<input type="number" value="' + target + '" onchange="updateTarget(event)" style="font-size:clamp(2rem,8vw,3.5rem);line-height:1;width:3ch;text-align:center;padding:0;margin:0"/>'
-            + '</div>'
-          : '<div class="stat-label mb-1">Target: <span class="accent-text">' + cricketTarget + '</span></div>'
-            + '<div class="score-hero text-center" style="font-size:clamp(2.8rem,11vw,4.8rem);line-height:1">'
-            +   '<span id="cricket-progress">' + cricketRounds.length + ' / ' + CRICKET_MAX_ROUNDS + '</span>'
-            + '</div>'
-            + '<div class="stat-label mt-1">Marks: <span id="marks-running" class="accent-text score-display" style="font-size:1.35rem">' + getTotalMarks() + '</span></div>';
-
-        appEl.innerHTML =
-          '<div class="view-enter flex justify-between items-center px-5 py-3 z-10">'
-          +   '<button onclick="endSession()" class="stat-label" style="color:#6b6b6b">End</button>'
-          +   '<button onclick="openSettings()" style="color:#6b6b6b;background:none;border:none;cursor:pointer;padding:4px;display:flex;align-items:center">' + GEAR_SVG + '</button>'
-          +   '<button onclick="toggleInsights()" class="stat-label" style="color:#6b6b6b">Insights</button>'
-          + '</div>'
-          + headerToggleHTML()
-          + (appMode === 'cricket' ? pillsHTML : '')
-          + '<div class="flex-none flex flex-col items-center justify-center py-1" style="height:' + (appMode==='cricket'?'7.5':'10') + 'rem">'
-          +   scoreSection
-          + '</div>'
-          + '<div class="flex justify-between items-end px-6 pb-3">'
-          +   '<div id="rounds-wrapper" class="flex flex-col"><span class="stat-label">Rounds</span><span id="rounds-display" class="stat-value">' + (appMode==='bull'?rounds.length:cricketRounds.length) + '</span></div>'
-          +   '<div class="flex items-end gap-6">'
-          +     '<div id="undo-btn-container" class="flex items-end mb-0.5"></div>'
-          +     '<div onclick="cycleMetric()" class="cursor-pointer active:opacity-60 flex flex-col items-end">'
-          +       '<span id="metric-label" class="stat-label">' + (appMode==='bull'?'BPR':'MPR') + '</span>'
-          +       '<span id="metric-value" class="stat-value">0.00</span>'
-          +     '</div>'
-          +   '</div>'
-          + '</div>'
-          + (appMode === 'bull' ? bullGrid : cricketNumpad);
-
+        rounds.push(val);
         updateStats();
+        if (getBullTotal() >= appSettings.target) setTimeout(endSession, 200);
+      } else {
+        cricketRounds.push(val);
+        updateStats();
+        if (cricketRounds.length >= 10) setTimeout(endSession, 200);
+      }
+    };
 
-      /* ── SUMMARY ── */
-      } else if (currentView === 'summary') {
-        var isBullMode = appMode === 'bull';
-        var statsRows  = isBullMode
-          ? '<div class="flex justify-between border-b stat-divider pb-3 mb-3"><span class="stat-label self-center">Bulls</span><span class="score-display accent-text" style="font-size:1.8rem">' + getTotalBulls() + ' / ' + target + '</span></div>'
-            + '<div class="flex justify-between border-b stat-divider pb-3 mb-3"><span class="stat-label self-center">Rounds</span><span class="score-display text-white" style="font-size:1.8rem">' + rounds.length + '</span></div>'
-            + '<div class="flex justify-between"><span class="stat-label self-center">BPR</span><span class="score-display text-white" style="font-size:1.8rem">' + getBPR() + '</span></div>'
-          : '<div class="flex justify-between border-b stat-divider pb-3 mb-3"><span class="stat-label self-center">Target</span><span class="score-display accent-text" style="font-size:1.8rem">' + cricketTarget + '</span></div>'
-            + '<div class="flex justify-between border-b stat-divider pb-3 mb-3"><span class="stat-label self-center">Total Marks</span><span class="score-display text-white" style="font-size:1.8rem">' + getTotalMarks() + '</span></div>'
-            + '<div class="flex justify-between border-b stat-divider pb-3 mb-3"><span class="stat-label self-center">Rounds</span><span class="score-display text-white" style="font-size:1.8rem">' + cricketRounds.length + ' / ' + CRICKET_MAX_ROUNDS + '</span></div>'
-            + '<div class="flex justify-between"><span class="stat-label self-center">MPR</span><span class="score-display text-white" style="font-size:1.8rem">' + getCricketMPR() + '</span></div>';
+    window.undoLast = () => {
+      initAudio(); beep(150); triggerHaptic();
+      const arr = appMode === 'bull' ? rounds : cricketRounds;
+      if (arr.length > 0) {
+        arr.pop();
+        if (arr.length === 0) sessionStartTime = null;
+        updateStats();
+      }
+    };
 
-        appEl.innerHTML =
-          '<div class="view-enter flex-1 scrollable flex flex-col items-center p-8 text-center">'
-          + '<div class="stat-label mb-1">Session Complete</div>'
-          + '<div class="score-hero mb-6" style="font-size:3rem">Summary</div>'
-          + '<div class="insight-card w-full max-w-xs mb-5 text-left">' + statsRows + '</div>'
-          + '<div class="w-full max-w-xs mb-8" style="height:180px"><canvas id="sessionChart"></canvas></div>'
-          + '<button onclick="restartSession()" class="w-full max-w-xs py-4 rounded-2xl font-label text-lg active:opacity-75" style="background:var(--accent);color:#000;letter-spacing:0.1em">Restart Practice</button>'
-          + '</div>';
-        setTimeout(window.renderSessionChart, 0);
+    window.endSession = () => {
+      const dur = sessionStartTime ? formatTime(Math.floor((Date.now() - sessionStartTime) / 1000)) : "0m 0s";
+      const dateStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-      /* ── INSIGHTS ── */
-      } else if (currentView === 'insights') {
-        var activeHistory = appMode === 'bull' ? history : cricketHistory;
+      if (appMode === 'bull' && rounds.length > 0) {
+        history.unshift({
+          date: dateStr, duration: dur, target: appSettings.target, 
+          bulls: getBullTotal(), rounds: rounds.length, 
+          bpr: (getBullTotal() / rounds.length).toFixed(2),
+          c0: rounds.filter(v=>v===0).length, c1: rounds.filter(v=>v===1).length,
+          c2: rounds.filter(v=>v===2).length, c3: rounds.filter(v=>v===3).length,
+          rawRounds: [...rounds] 
+        });
+        localStorage.setItem('ocheHistory', JSON.stringify(history));
+      } 
+      else if (appMode === 'cricket' && cricketRounds.length > 0) {
+        cricketHistory.unshift({
+          date: dateStr, duration: dur, target: cricketTarget,
+          totalMarks: getCricketTotal(), rounds: cricketRounds.length,
+          mpr: (getCricketTotal() / cricketRounds.length).toFixed(2),
+          rawRounds: [...cricketRounds]
+        });
+        localStorage.setItem('ocheCricketHistory', JSON.stringify(cricketHistory));
+      }
+      
+      sessionStartTime = null; 
+      currentView = 'summary';
+      render();
+    };
 
-        var nicknameHTML = editingNickname
-          ? '<input id="nickname-input" class="nickname-input" value="' + nickname + '" onkeydown="saveNickname(event)" onblur="saveNickname(event)" maxlength="20"/>'
-          : '<span class="score-display accent-text" style="font-size:1.9rem">' + nickname + '</span>'
-            + '<button onclick="startEditNickname()" style="color:#6b6b6b;background:none;border:none;cursor:pointer;padding:3px;display:flex">' + PENCIL_SVG + '</button>';
+    window.restartSession = () => { rounds = []; cricketRounds = []; sessionStartTime = null; currentView = 'practice'; render(); };
+    window.toggleView = (view) => { currentView = view; render(); };
+    window.deleteRecord = (index) => {
+      if (confirm('Delete session?')) {
+        appMode === 'bull' ? history.splice(index, 1) : cricketHistory.splice(index, 1);
+        localStorage.setItem(appMode === 'bull' ? 'ocheHistory' : 'ocheCricketHistory', JSON.stringify(appMode === 'bull' ? history : cricketHistory));
+        render();
+      }
+    };
+    window.clearHistory = () => {
+      if (confirm(`Clear all ${appMode} history?`)) { 
+        if (appMode === 'bull') { history = []; localStorage.removeItem('ocheHistory'); } 
+        else { cricketHistory = []; localStorage.removeItem('ocheCricketHistory'); }
+        render(); 
+      }
+    };
 
-        var profileCard =
-          '<div class="insight-card" style="margin-bottom:12px">'
-          + '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px">' + nicknameHTML + '</div>'
-          + '<div style="display:flex;gap:8px;margin-bottom:12px">'
-          +   '<div class="profile-stat"><div class="stat-label">All-Time BPR</div><div class="score-display text-white" style="font-size:1.45rem">' + getAllTimeBPR() + '</div></div>'
-          +   '<div class="profile-stat"><div class="stat-label">All-Time MPR</div><div class="score-display accent-text" style="font-size:1.45rem">' + getAllTimeMPR() + '</div></div>'
-          +   '<div class="profile-stat"><div class="stat-label">Rounds</div><div class="score-display text-white" style="font-size:1.45rem">' + getTotalRoundsAll() + '</div></div>'
-          + '</div>'
-          + '<div style="display:flex;gap:8px">'
-          +   '<button onclick="exportBackup()" class="backup-btn">\u2b07 Export .json</button>'
-          +   '<button onclick="importBackup()" class="backup-btn">\u2b06 Restore</button>'
-          + '</div>'
-          + '</div>';
+    // --- UI UPDATER ---
+    function updateStats() {
+      const isBull = appMode === 'bull';
+      const arr = isBull ? rounds : cricketRounds;
+      const total = isBull ? getBullTotal() : getCricketTotal();
+      const avg = arr.length ? (total / arr.length).toFixed(2) : "0.00";
 
-        var macroCard = activeHistory.length >= 2
-          ? '<div class="insight-card" style="margin-bottom:12px">'
-            +   '<div class="stat-label" style="margin-bottom:10px">' + (appMode==='bull'?'BPR':'MPR') + ' Progression</div>'
-            +   '<div style="height:150px"><canvas id="macroChart"></canvas></div>'
-            + '</div>'
-          : '';
+      const heroEl = document.getElementById('hero-score');
+      const roundsEl = document.getElementById('rounds-display');
+      const metricEl = document.getElementById('metric-display');
+      const undoEl = document.getElementById('undo-btn');
 
-        var historyCards = '';
-        if (activeHistory.length === 0) {
-          historyCards = '<div class="text-center mt-6 stat-label" style="font-size:0.9rem;color:#4b4b4b">No sessions recorded yet.</div>';
+      if (heroEl) heroEl.innerText = total;
+      
+      if (roundsEl) {
+        if (appSettings.showRounds) {
+          roundsEl.innerHTML = `Rounds <span class="text-white text-3xl ml-2 font-bold font-display">${arr.length}${isBull ? '' : '/10'}</span>`;
         } else {
-          for (var idx = 0; idx < activeHistory.length; idx++) {
-            var h = activeHistory[idx];
-            var metaSuffix = (appMode === 'cricket' && h.target) ? ' \u00b7 Target: ' + h.target : '';
-            var statLine   = appMode === 'bull'
-              ? (h.bulls||0) + '/' + (h.target||0) + ' Bulls \u00b7 ' + (h.rounds||0) + ' rounds'
-              : (h.totalMarks||0) + ' marks \u00b7 ' + (h.rounds||0) + ' rounds';
-            var bullBreakdown = appMode === 'bull'
-              ? '<div style="display:flex;justify-content:space-between;text-align:center;border-top:1px solid rgba(255,255,255,0.05);padding-top:12px;margin-top:0">'
-                + '<div><div class="stat-label">Miss</div><div class="score-display" style="font-size:1.4rem;color:#ef4444">' + (h.c0!=null?h.c0:'-') + '</div></div>'
-                + '<div><div class="stat-label">1</div><div class="score-display" style="font-size:1.4rem;color:#4ade80">'   + (h.c1!=null?h.c1:'-') + '</div></div>'
-                + '<div><div class="stat-label">2</div><div class="score-display" style="font-size:1.4rem;color:#60a5fa">'   + (h.c2!=null?h.c2:'-') + '</div></div>'
-                + '<div><div class="stat-label">3</div><div class="score-display accent-text" style="font-size:1.4rem">'     + (h.c3!=null?h.c3:'-') + '</div></div>'
-                + '</div>'
-              : '';
-            var hasRaw = h.rawRounds && h.rawRounds.length;
-            historyCards +=
-              '<div class="insight-card">'
-              + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:12px">'
-              +   '<div class="stat-label">' + h.date + ' \u00b7 \u23f1 ' + (h.duration||'-') + metaSuffix + '</div>'
-              +   '<button onclick="deleteRecord(' + idx + ')" class="stat-label" style="background:#181818;padding:3px 8px;border-radius:8px">&#x2715;</button>'
-              + '</div>'
-              + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:' + (appMode==='bull'?'12px':'0') + '">'
-              +   '<div>'
-              +     '<div class="score-display accent-text" style="font-size:2.6rem;line-height:1">' + (appMode==='bull'?(h.bpr||'0.00'):(h.mpr||'0.00')) + '<span class="stat-label" style="margin-left:4px">' + (appMode==='bull'?'BPR':'MPR') + '</span></div>'
-              +     '<div class="stat-label" style="margin-top:4px">' + statLine + '</div>'
-              +   '</div>'
-              +   (hasRaw ? '<button onclick="toggleMicroChart(' + idx + ')" class="font-label" style="font-size:0.7rem;padding:8px 12px;border-radius:12px;background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);letter-spacing:0.06em">\uD83D\uDCC8 Chart</button>' : '')
-              + '</div>'
-              + bullBreakdown
-              + (hasRaw ? '<div id="chart-container-' + idx + '" class="hidden" style="height:120px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.05)"><canvas id="microChart-' + idx + '"></canvas></div>' : '')
-              + '</div>';
+          roundsEl.innerHTML = ``;
+        }
+      }
+      
+      if (metricEl) {
+        if (appSettings.zen) {
+          metricEl.innerHTML = `<span class="text-gray-600 text-3xl font-bold font-display">—</span>`;
+        } else {
+          metricEl.innerHTML = `<span class="text-gray-500 text-sm mb-1">${isBull ? 'BPR' : 'MPR'}</span> <span class="text-[var(--accent)] text-3xl ml-2 font-bold font-display">${avg}</span>`;
+        }
+      }
+
+      if (undoEl) undoEl.style.display = arr.length > 0 ? 'block' : 'none';
+    }
+
+    // --- CHART ENGINE ---
+    function drawChart(canvasId, dataArray, color) {
+      if (activeCharts[canvasId]) activeCharts[canvasId].destroy();
+      const ctx = document.getElementById(canvasId);
+      if (!ctx || dataArray.length === 0) return;
+
+      const labels = dataArray.map((_, i) => i + 1);
+      const trendData = calcLogTrendline(dataArray);
+
+      activeCharts[canvasId] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Actual',
+              data: dataArray,
+              borderColor: color,
+              backgroundColor: color.replace('1)', '0.1)'),
+              borderWidth: 2,
+              pointBackgroundColor: '#fff',
+              pointRadius: 3,
+              fill: true,
+              tension: 0.2 
+            },
+            {
+              label: 'Trend',
+              data: trendData,
+              borderColor: '#ffffff',
+              borderWidth: 2,
+              borderDash: [5, 5], // Dashed line for trend
+              pointRadius: 0,
+              fill: false,
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+          scales: {
+            y: { min: 0, ticks: { color: '#9ca3af' }, grid: { color: '#27272a' } },
+            x: { display: false }
           }
         }
+      });
+    }
 
-        var clearBtn = activeHistory.length > 0
-          ? '<button onclick="clearHistory()" class="font-label" style="width:100%;padding:14px 0;font-size:0.85rem;color:#5a1a1a;margin-top:6px">Clear All History</button>'
-          : '';
+    window.toggleMicroChart = (index) => {
+      const container = document.getElementById(`chart-container-${index}`);
+      container.classList.toggle('hidden');
+      if (!container.classList.contains('hidden')) {
+        const h = appMode === 'bull' ? history[index] : cricketHistory[index];
+        const color = appMode === 'bull' ? 'rgba(249, 115, 22, 1)' : 'rgba(168, 85, 247, 1)';
+        setTimeout(() => drawChart(`microChart-${index}`, h.rawRounds, color), 10);
+      }
+    };
 
-        appEl.innerHTML =
-          '<div class="view-enter" style="display:flex;justify-content:space-between;align-items:center;padding:14px 22px;border-bottom:1px solid rgba(255,255,255,0.05)">'
-          +   '<button onclick="toggleInsights()" class="accent-text font-label" style="font-size:0.9rem">&#8592; Back</button>'
-          +   '<span class="font-label text-white" style="font-size:1.1rem">Insights</span>'
-          +   '<div style="width:48px"></div>'
-          + '</div>'
-          + '<div style="padding:6px 0 4px;border-bottom:1px solid rgba(255,255,255,0.05)">' + headerToggleHTML() + '</div>'
-          + '<div class="scrollable" style="flex:1;padding:14px 14px 40px;display:flex;flex-direction:column;gap:0">'
-          +   profileCard + macroCard + historyCards + clearBtn
-          + '</div>';
+    // --- MAIN RENDERER ---
+    const app = document.getElementById('app');
+    
+    function render() {
+      const isBull = appMode === 'bull';
+      const accentText = isBull ? 'text-orange-500' : 'text-purple-500';
 
-        setTimeout(window.renderMacroChart, 0);
+      const headerToggle = `
+        <div class="flex justify-center mt-2 mb-4 w-full px-6">
+          <div class="bg-[#18181b] border border-gray-800 rounded-xl p-1 flex w-full max-w-sm justify-between shadow-lg">
+            <button onclick="switchMode('bull')" class="${isBull ? 'bg-orange-500/20 text-orange-500' : 'text-gray-500'} w-1/2 py-2.5 rounded-lg text-sm font-bold tracking-wider transition-all">BULL RACE</button>
+            <button onclick="switchMode('cricket')" class="${!isBull ? 'bg-purple-500/20 text-purple-500' : 'text-gray-500'} w-1/2 py-2.5 rounded-lg text-sm font-bold tracking-wider transition-all">CRICKET (LOCK)</button>
+          </div>
+        </div>
+      `;
+
+      if (currentView === 'practice') {
+        const isBullStage = !isBull && cricketTarget === 'BULL';
+        
+        let padHtml = '';
+        if (isBull) {
+          padHtml = `
+            <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-4 px-4 pb-6 max-w-md w-full mx-auto">
+              <button ontouchstart="tapButton(0, this)" onmousedown="tapButton(0, this)" class="btn-target rounded-3xl flex items-center justify-center text-[5rem] font-bold font-display text-gray-200">0</button>
+              <button ontouchstart="tapButton(1, this)" onmousedown="tapButton(1, this)" class="btn-target rounded-3xl flex items-center justify-center text-[5rem] font-bold font-display text-gray-200">1</button>
+              <button ontouchstart="tapButton(2, this)" onmousedown="tapButton(2, this)" class="btn-target rounded-3xl flex items-center justify-center text-[5rem] font-bold font-display text-gray-200">2</button>
+              <button ontouchstart="tapButton(3, this)" onmousedown="tapButton(3, this)" class="btn-target rounded-3xl flex items-center justify-center text-[5rem] font-bold font-display text-gray-200">3</button>
+            </div>`;
+        } else {
+          padHtml = `
+            <div class="flex-1 grid grid-cols-3 grid-rows-4 gap-3 px-4 pb-6 max-w-md w-full mx-auto">
+              ${[1,2,3,4,5,6].map(n => `<button ontouchstart="tapButton(${n}, this)" onmousedown="tapButton(${n}, this)" class="btn-target rounded-2xl flex items-center justify-center text-[3.5rem] font-bold font-display text-gray-200">${n}</button>`).join('')}
+              ${[7,8,9].map(n => `<button ontouchstart="${isBullStage ? '' : `tapButton(${n}, this)`}" onmousedown="${isBullStage ? '' : `tapButton(${n}, this)`}" class="btn-target rounded-2xl flex items-center justify-center text-[3.5rem] font-bold font-display text-gray-200 transition-opacity ${isBullStage ? 'opacity-10' : ''}">${n}</button>`).join('')}
+              <div></div>
+              <button ontouchstart="tapButton(0, this)" onmousedown="tapButton(0, this)" class="btn-target rounded-2xl flex items-center justify-center text-[3.5rem] font-bold font-display text-gray-200">0</button>
+              <div></div>
+            </div>`;
+        }
+
+        app.innerHTML = `
+          <div class="flex justify-between px-6 py-2 items-center text-gray-400 font-medium z-10">
+            <button onclick="toggleSettings()" class="p-2 -ml-2 text-xl hover:text-white transition-colors">⚙️</button>
+            <div class="space-x-4">
+              <button onclick="endSession()" class="active:text-white uppercase text-sm tracking-widest font-bold">End</button>
+              <button onclick="toggleView('insights')" class="active:text-white uppercase text-sm tracking-widest font-bold text-[var(--accent)]">Data</button>
+            </div>
+          </div>
+          ${headerToggle}
+          
+          <div class="flex-none flex flex-col items-center justify-center py-2 h-44 relative">
+            ${isBull ? `
+              <div class="text-gray-500 text-sm mb-1 uppercase tracking-widest font-bold">Score / ${appSettings.target}</div>
+              <div class="text-[clamp(4rem,18vw,7rem)] font-bold font-display leading-none text-white tracking-tight">
+                <span id="hero-score" class="inline-block">0</span>
+              </div>
+            ` : `
+              <div class="text-gray-500 text-sm mb-2 uppercase tracking-widest font-bold">Target Lock</div>
+              <select id="cricket-target-select" onchange="changeCricketTarget(this.value)" class="bg-[#18181b] text-[var(--accent)] text-4xl font-display font-bold px-6 py-2 rounded-xl border border-gray-800 outline-none appearance-none text-center shadow-lg">
+                ${['20','19','18','17','16','15','BULL'].map(t => `<option value="${t}" ${cricketTarget===t?'selected':''}>${t}</option>`).join('')}
+              </select>
+              <div class="text-white text-[clamp(3rem,12vw,5rem)] font-bold font-display leading-none mt-2">
+                <span id="hero-score" class="inline-block">0</span>
+              </div>
+            `}
+          </div>
+          
+          <div class="flex justify-between items-end px-6 pb-6 w-full max-w-md mx-auto">
+            <div id="rounds-display" class="h-10 flex items-end text-gray-500 uppercase text-sm tracking-widest"></div>
+            <div class="flex items-end gap-6 h-10">
+              <button id="undo-btn" onclick="undoLast()" class="text-sm underline mb-1 text-gray-400 active:text-white" style="display:none">Undo</button>
+              <div id="metric-display" class="flex items-end text-sm uppercase tracking-widest"></div>
+            </div>
+          </div>
+          ${padHtml}
+        `;
+        updateStats();
+      } 
+      else if (currentView === 'summary') {
+        app.innerHTML = `
+          <div class="flex-1 scrollable flex flex-col items-center p-8 text-center">
+            <h1 class="text-4xl font-bold font-display tracking-wide mb-2 text-white">SESSION COMPLETE</h1>
+            <div class="text-gray-400 mb-8 font-semibold bg-[#18181b] border border-gray-800 px-4 py-1.5 rounded-full text-sm">⏱️ ${sessionStartTime ? formatTime(Math.floor((Date.now() - sessionStartTime) / 1000)) : (isBull ? history[0]?.duration : cricketHistory[0]?.duration)}</div>
+            
+            <div class="bg-[#18181b] border border-gray-800 w-full max-w-sm rounded-2xl p-6 mb-6 shadow-xl">
+              ${isBull ? `
+                <div class="flex justify-between border-b border-gray-800/50 py-3"><span class="text-gray-400">Bulls:</span> <span class="text-white font-bold text-xl font-display">${getBullTotal()} / ${appSettings.target}</span></div>
+                <div class="flex justify-between border-b border-gray-800/50 py-3"><span class="text-gray-400">Rounds:</span> <span class="text-white font-bold text-xl font-display">${rounds.length}</span></div>
+                <div class="flex justify-between py-3"><span class="text-gray-400">BPR:</span> <span class="text-[var(--accent)] font-bold text-2xl font-display">${(getBullTotal()/rounds.length).toFixed(2)}</span></div>
+              ` : `
+                <div class="flex justify-between border-b border-gray-800/50 py-3"><span class="text-gray-400">Target:</span> <span class="text-[var(--accent)] font-bold text-xl font-display">${cricketTarget}</span></div>
+                <div class="flex justify-between border-b border-gray-800/50 py-3"><span class="text-gray-400">Total Marks:</span> <span class="text-white font-bold text-xl font-display">${getCricketTotal()}</span></div>
+                <div class="flex justify-between py-3"><span class="text-gray-400">MPR:</span> <span class="text-[var(--accent)] font-bold text-2xl font-display">${(getCricketTotal()/10).toFixed(2)}</span></div>
+              `}
+            </div>
+
+            <div class="w-full max-w-sm h-48 mb-8 bg-[#18181b] p-4 rounded-2xl border border-gray-800 shadow-lg">
+              <canvas id="sessionChart"></canvas>
+            </div>
+
+            <button onclick="restartSession()" class="w-full max-w-sm bg-white text-black font-bold font-display py-4 rounded-xl text-2xl active:bg-gray-300 transition-colors">CONTINUE DRILL</button>
+          </div>
+        `;
+        const arr = isBull ? rounds : cricketRounds;
+        const color = isBull ? 'rgba(249, 115, 22, 1)' : 'rgba(168, 85, 247, 1)';
+        setTimeout(() => drawChart('sessionChart', arr, color), 50);
+      } 
+      else if (currentView === 'insights') {
+        const stats = getAllTimeStats();
+        const activeHistory = isBull ? history : cricketHistory;
+        
+        app.innerHTML = `
+          <div class="flex justify-between items-center px-6 py-4 z-10 border-b border-gray-800 bg-[#09090b]">
+            <button onclick="toggleView('practice')" class="${accentText} font-bold tracking-wider text-sm">&larr; BACK TO OCHE</button>
+            <span class="font-bold text-xl font-display text-white tracking-widest">PROFILE</span>
+            <div class="w-16"></div>
+          </div>
+          
+          <div class="flex-1 scrollable px-4 pb-12 pt-6">
+            <div class="bg-[#18181b] rounded-3xl p-6 mb-6 border border-gray-800 shadow-xl">
+              <div class="flex justify-between items-center border-b border-gray-800/50 pb-4 mb-4">
+                <input type="text" value="${appSettings.nickname}" onchange="updateNickname(this.value)" class="text-3xl font-bold font-display text-white bg-transparent w-48 focus:border-b focus:border-gray-600" placeholder="Your Name" />
+                <span class="text-xs text-gray-500 uppercase tracking-widest font-bold">Tap to edit</span>
+              </div>
+              <div class="grid grid-cols-3 gap-4 text-center mb-6">
+                <div><div class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">ALL BPR</div><div class="text-orange-500 text-3xl font-display font-bold">${stats.allTimeBPR}</div></div>
+                <div class="border-l border-r border-gray-800/50"><div class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">ALL MPR</div><div class="text-purple-500 text-3xl font-display font-bold">${stats.allTimeMPR}</div></div>
+                <div><div class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">ROUNDS</div><div class="text-white text-3xl font-display font-bold">${stats.totalRounds}</div></div>
+              </div>
+              
+              <div class="w-full h-32 mb-6">
+                 ${activeHistory.length > 1 ? '<canvas id="macroChart"></canvas>' : '<div class="h-full flex items-center justify-center text-gray-600 text-sm font-bold">Play 2 sessions to see trend graph.</div>'}
+              </div>
+
+              <div class="flex gap-2">
+                <button onclick="exportData()" class="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-bold py-2.5 rounded-lg text-sm transition-colors border border-gray-700">💾 Backup</button>
+                <label class="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-bold py-2.5 rounded-lg text-sm text-center cursor-pointer transition-colors border border-gray-700">
+                  📂 Restore <input type="file" accept=".json" onchange="importData(event)" class="hidden" />
+                </label>
+              </div>
+            </div>
+
+            ${headerToggle}
+
+            <div class="space-y-4 mt-2">
+              ${activeHistory.length === 0 ? '<div class="text-center text-gray-600 font-bold mt-8">No sessions recorded yet.</div>' :
+                activeHistory.map((h, i) => `
+                  <div class="bg-[#18181b] rounded-2xl p-5 border border-gray-800 shadow-lg">
+                    <div class="flex justify-between items-start border-b border-gray-800/50 pb-3 mb-3">
+                      <div class="text-xs text-gray-500 font-bold tracking-wider uppercase">${h.date} &nbsp;|&nbsp; ⏱️ ${h.duration || '-'}</div>
+                      <button onclick="deleteRecord(${i})" class="text-red-900 font-bold active:text-red-500 px-2 bg-black rounded">X</button>
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <div>
+                        <div class="text-4xl font-bold font-display ${accentText}">${isBull ? h.bpr : h.mpr} <span class="text-sm font-sans text-gray-500 tracking-widest">${isBull ? 'BPR' : 'MPR'}</span></div>
+                        <div class="text-sm text-gray-400 font-bold mt-1">${isBull ? `${h.bulls}/${h.target} Bulls in ${h.rounds} rds` : `Target: ${h.target} | ${h.totalMarks} Marks`}</div>
+                      </div>
+                      ${h.rawRounds ? `<button onclick="toggleMicroChart(${i})" class="${accentText} text-xs font-bold uppercase tracking-widest bg-black px-3 py-2 rounded-lg border border-gray-800 active:bg-gray-900">Graph</button>` : ''}
+                    </div>
+                    ${h.rawRounds ? `<div id="chart-container-${i}" class="hidden w-full h-32 mt-4 pt-4 border-t border-gray-800/50"><canvas id="microChart-${i}"></canvas></div>` : ''}
+                  </div>
+                `).join('')
+              }
+              ${activeHistory.length > 0 ? `<button onclick="clearHistory()" class="w-full mt-6 py-4 text-red-900 font-bold uppercase tracking-widest text-sm active:text-red-500">Clear All History</button>` : ''}
+            </div>
+          </div>
+        `;
+
+        // Render Macro Chart
+        if (activeHistory.length > 1) {
+          const dataArray = [...activeHistory].reverse().map(h => parseFloat(isBull ? h.bpr : h.mpr));
+          const color = isBull ? 'rgba(249, 115, 22, 1)' : 'rgba(168, 85, 247, 1)';
+          setTimeout(() => drawChart('macroChart', dataArray, color), 50);
+        }
       }
     }
 
