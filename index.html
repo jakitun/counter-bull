@@ -2,705 +2,830 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
-  <title>Oche Tracker</title>
-  <link rel="manifest" href="manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Free Oche" />
+  <meta name="theme-color" content="#080808" />
+  <title>Free Oche</title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
-    /* ── MODE THEMING ── */
+    /* ─── Tokens ─────────────────────────────────────────────────────────────── */
     :root {
-      --accent:     #f97316;
-      --accent-dim: rgba(249, 115, 22, 0.12);
-      --accent-glow: rgba(249, 115, 22, 0.35);
+      --accent:      #f97316;
+      --accent-dim:  rgba(249,115,22,0.13);
+      --accent-glow: rgba(249,115,22,0.35);
     }
     body.mode-cricket {
-      --accent:     #a855f7;
-      --accent-dim: rgba(168, 85, 247, 0.12);
-      --accent-glow: rgba(168, 85, 247, 0.35);
+      --accent:      #a855f7;
+      --accent-dim:  rgba(168,85,247,0.13);
+      --accent-glow: rgba(168,85,247,0.35);
     }
 
-    /* ── BASE ── */
-    html, body {
-      height: 100%;
-      overscroll-behavior: none;
-      margin: 0;
+    /* ─── Zoom prevention ───────────────────────────────────────────────────────── */
+    html {
+      touch-action: manipulation;
+      -ms-touch-action: manipulation;
+    }
+    * { touch-action: manipulation; }
+    input, textarea {
+      touch-action: auto;
+      font-size: 16px;
+    }
+
+    /* ─── Reset / base ───────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
       background: #080808;
-      color: white;
-      touch-action: none;
-      user-select: none;
-      overflow: hidden;
-      font-family: 'Rajdhani', sans-serif;
-    }
-
-    input::-webkit-outer-spin-button,
-    input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    input[type="number"] {
-      height: 1.2em;
-      line-height: 1;
-      width: 3ch;
-      outline: none;
-      background: transparent;
-      font-family: 'Bebas Neue', sans-serif;
-      color: var(--accent);
-    }
-
-    /* ── TYPOGRAPHY ── */
-    .font-score  { font-family: 'Bebas Neue', sans-serif; }
-    .font-label  { font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
-
-    .score-hero {
-      font-family: 'Bebas Neue', sans-serif;
-      color: var(--accent);
-      text-shadow: 0 0 48px var(--accent-glow);
-      transition: color 0.4s ease, text-shadow 0.4s ease;
-      display: inline-block;
-    }
-    .score-display { font-family: 'Bebas Neue', sans-serif; }
-
-    .stat-label {
+      color: #fff;
       font-family: 'Rajdhani', sans-serif;
       font-weight: 600;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-overflow-scrolling: touch;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+    button {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      touch-action: manipulation;
+    }
+    input { font-family: 'Rajdhani', sans-serif; outline: none; }
+
+    /* ─── App shell ──────────────────────────────────────────────────────────── */
+    #app {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+      max-width: 480px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ─── Settings modal mount ───────────────────────────────────────────────── */
+    #settings-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      pointer-events: none;
+    }
+    #settings-modal.open { pointer-events: all; }
+
+    /* ─── Typography ─────────────────────────────────────────────────────────── */
+    .font-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .stat-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #6b6b6b;
+    }
+    .score-display { font-family: 'Bebas Neue', cursive; }
+
+    /* ─── Animations ─────────────────────────────────────────────────────────── */
+    @keyframes viewEnter {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .view-enter { animation: viewEnter 0.2s ease-out forwards; }
+
+    @keyframes scorePunch {
+      0%   { transform: scale(1);    }
+      35%  { transform: scale(1.22); }
+      100% { transform: scale(1);    }
+    }
+    .score-punch { animation: scorePunch 0.16s ease-out forwards; }
+
+    /* ─── Flash classes ──────────────────────────────────────────────────────── */
+    .flash-0     { background: #450a0a !important; border-color: #7f1d1d !important; transition: none !important; }
+    .flash-1     { background: #052e16 !important; border-color: #14532d !important; transition: none !important; }
+    .flash-2     { background: #172554 !important; border-color: #1e40af !important; transition: none !important; }
+    .flash-3     { background: var(--accent-dim) !important; border-color: var(--accent) !important; transition: none !important; }
+    .flash-c-miss { background: #450a0a !important; border-color: #7f1d1d !important; transition: none !important; }
+    .flash-c-hit  { background: var(--accent-dim) !important; border-color: var(--accent) !important; transition: none !important; }
+
+    /* ─── Score hero ─────────────────────────────────────────────────────────── */
+    .score-hero {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 7.5rem;
+      line-height: 0.88;
+      color: var(--accent);
+      text-shadow: 0 0 40px var(--accent-glow);
+      letter-spacing: 0.01em;
+    }
+
+    /* ─── Top bar ────────────────────────────────────────────────────────────── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      min-height: 54px;
+      flex-shrink: 0;
+    }
+    .mode-dropdown-pill {
+      background: #1c1c1e;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 9999px;
+      padding: 8px 14px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .mode-dropdown-pill:active { opacity: 0.7; }
+    .target-pill {
+      background: #1c1c1e;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 9999px;
+      padding: 8px 14px;
+      font-family: 'Bebas Neue', cursive;
+      font-size: 1rem;
+      color: #fff;
+      letter-spacing: 0.05em;
+    }
+    .target-pill:active { opacity: 0.7; }
+    .mode-popover-backdrop { position: absolute; inset: 0; }
+    .mode-popover {
+      position: absolute;
+      top: 54px;
+      left: 16px;
+      background: #1c1c1e;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      overflow: hidden;
+      z-index: 10;
+      min-width: 180px;
+    }
+    .mode-popover-item {
+      padding: 14px 18px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.85rem;
+      letter-spacing: 0.08em;
+      color: #aaa;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      cursor: pointer;
+    }
+    .mode-popover-item:last-child { border-bottom: none; }
+    .mode-popover-item:active { background: rgba(255,255,255,0.05); }
+    .mode-popover-active { color: var(--accent); }
+    .top-bar-icons { display: flex; gap: 2px; }
+    .btn-icon {
+      background: transparent;
+      border: none;
+      color: #555;
+      font-size: 1.1rem;
+      padding: 8px 10px;
+      border-radius: 8px;
+      transition: color 0.12s;
+    }
+    .btn-icon:active { color: var(--accent); }
+    .btn-back {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.82rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 6px 10px 6px 0;
+    }
+    .top-bar-title {
+      font-size: 0.88rem;
+      letter-spacing: 0.14em;
+      color: #fff;
+    }
+
+    /* ─── Metric band ────────────────────────────────────────────────────────── */
+    .metric-band {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 20px 12px;
+      flex-shrink: 0;
+    }
+    .metric-left {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      min-width: 72px;
+      cursor: pointer;
+    }
+    .metric-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      min-width: 72px;
+    }
+    .metric-label {
+      font-size: 0.68rem;
+      color: #6b6b6b;
+      letter-spacing: 0.1em;
+      min-height: 14px;
+    }
+    .metric-value {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 1.7rem;
+      color: #fff;
+      line-height: 1;
+    }
+    .metric-r-label {
+      font-size: 0.68rem;
+      color: #6b6b6b;
+      letter-spacing: 0.1em;
+      text-align: right;
+    }
+    .metric-r-value {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 1.7rem;
+      color: #fff;
+      line-height: 1;
+      text-align: right;
+    }
+
+    /* ─── Bull grid ──────────────────────────────────────────────────────────── */
+    .bull-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 8px;
+      padding: 0 8px 8px;
+      flex: 1;
+      min-height: 0;
+    }
+    .btn-tap {
+      background: #0f0f0f;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px;
+      color: #fff;
+      font-family: 'Bebas Neue', cursive;
+      font-size: 5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.08s, border-color 0.08s, transform 0.06s;
+    }
+    .btn-tap:active {
+      transform: scale(0.91);
+      background: var(--accent-dim);
+      border-color: var(--accent);
+    }
+
+    /* ─── Cricket numpad ─────────────────────────────────────────────────────── */
+    .cricket-numpad {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 0 8px 8px;
+      min-height: 0;
+    }
+    .numpad-row {
+      display: flex;
+      flex: 1;
+      gap: 8px;
+    }
+    .numpad-row-zero { justify-content: stretch; }
+    .btn-cricket {
+      background: #0f0f0f;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px;
+      color: #fff;
+      font-family: 'Bebas Neue', cursive;
+      font-size: 2.6rem;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.08s, border-color 0.08s, transform 0.06s;
+    }
+    .btn-cricket-zero {
+      flex: 1;
+      max-width: 100%;
+      border-radius: 16px;
+    }
+    .btn-cricket:active {
+      transform: scale(0.91);
+      background: var(--accent-dim);
+      border-color: var(--accent);
+    }
+    .btn-disabled {
+      opacity: 0.15;
+      pointer-events: none;
+    }
+
+    /* ─── Target strip ───────────────────────────────────────────────────────── */
+    .target-strip {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding: 8px 16px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .target-strip::-webkit-scrollbar { display: none; }
+    .target-item {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 1.15rem;
+      scroll-snap-align: center;
+      flex-shrink: 0;
+      padding: 6px 18px;
+      border-radius: 20px;
+      background: #0f0f0f;
+      border: 1px solid rgba(255,255,255,0.07);
+      color: #6b6b6b;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .target-item.target-active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    /* ─── Action strip ───────────────────────────────────────────────────────── */
+    .action-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 20px;
+      flex-shrink: 0;
+    }
+    .action-btn {
+      background: none;
+      border: none;
+      color: #6b6b6b;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.82rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 0;
+    }
+    .action-btn:active { color: #fff; }
+    .action-btn-right { flex-direction: row-reverse; }
+    .action-btn-dim { opacity: 0.25; pointer-events: none; }
+    .btn-secondary {
+      flex: 1;
+      background: #0f0f0f;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #aaa;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-radius: 14px;
+      padding: 16px;
+      transition: background 0.1s;
+    }
+    .btn-secondary:active { background: #161616; }
+    .btn-primary {
+      flex: 2;
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-radius: 14px;
+      padding: 16px;
+      transition: opacity 0.1s;
+    }
+    .btn-primary:active { opacity: 0.8; }
+
+    /* ─── Summary screen ─────────────────────────────────────────────────────── */
+    .summary-hero {
+      padding: 32px 20px 16px;
+      flex-shrink: 0;
+    }
+    .summary-hero-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
       font-size: 0.72rem;
       letter-spacing: 0.14em;
       text-transform: uppercase;
       color: #6b6b6b;
     }
-    .stat-value {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 2.4rem;
-      line-height: 1;
-      color: white;
-    }
-
-    /* ── SCORE PUNCH ANIMATION ── */
-    @keyframes score-punch {
-      0%   { transform: scale(1); }
-      35%  { transform: scale(1.22); }
-      100% { transform: scale(1); }
-    }
-    .score-punch { animation: score-punch 0.22s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
-
-    /* ── BULL TAP BUTTONS ── */
-    .btn-tap {
-      background: #0f0f0f;
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 26px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: transform 0.08s ease, border-color 0.12s ease, background 0.12s ease;
-      position: relative;
-      overflow: hidden;
-    }
-    .btn-tap:active {
-      transform: scale(0.91);
-      border-color: var(--accent);
-      background: var(--accent-dim);
-    }
-    .btn-tap:active .btn-num  { color: var(--accent); }
-    .btn-tap:active .btn-icons { color: var(--accent); opacity: 1; }
-
-    .btn-num {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 4.5rem;
-      line-height: 1;
-      color: white;
-      transition: color 0.12s ease;
-    }
-    .btn-icons {
-      display: flex;
-      gap: 3px;
-      align-items: center;
-      color: rgba(255,255,255,0.18);
-      transition: color 0.12s ease, opacity 0.12s ease;
-      min-height: 14px;
-    }
-
-    /* ── CRICKET NUMPAD BUTTONS ── */
-    .btn-cricket {
-      background: #0f0f0f;
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 18px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 2.8rem;
-      color: #c9cdd4;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: transform 0.08s ease, border-color 0.12s ease, background 0.12s ease, color 0.12s ease, opacity 0.3s ease;
-    }
-    .btn-cricket:active {
-      transform: scale(0.91);
-      border-color: var(--accent);
-      background: var(--accent-dim);
+    .summary-hero-val {
+      font-family: 'Bebas Neue', cursive;
+      font-size: clamp(6rem, 25vw, 10rem);
+      line-height: 0.88;
       color: var(--accent);
+      text-shadow: 0 0 40px var(--accent-glow);
     }
-
-    /* ── FLASH CLASSES ── */
-    .btn-target { transition: background-color 0.15s ease-out; }
-    .flash-0 { background-color: #dc2626 !important; transition: none !important; }
-    .flash-1 { background-color: #16a34a !important; transition: none !important; }
-    .flash-2 { background-color: #2563eb !important; transition: none !important; }
-    .flash-3 { background-color: var(--accent) !important; transition: none !important; }
-    .flash-c-miss { background-color: #dc2626 !important; transition: none !important; }
-    .flash-c-hit  { background-color: var(--accent) !important; transition: none !important; }
-
-    /* ── MODE TOGGLE ── */
-    .mode-toggle {
-      background: #0f0f0f;
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 9999px;
-      padding: 4px;
+    .summary-stat-row {
       display: flex;
+      gap: 32px;
+      padding: 0 20px 12px;
+      flex-shrink: 0;
     }
-    .mode-btn {
-      flex: 1;
-      padding: 7px 12px;
-      border-radius: 9999px;
+    .summary-stat-col { display: flex; flex-direction: column; }
+    .summary-stat-label {
       font-family: 'Rajdhani', sans-serif;
       font-weight: 700;
-      font-size: 0.72rem;
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #6b6b6b;
+    }
+    .summary-stat-val {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 1.8rem;
+      color: #fff;
+      line-height: 1;
+    }
+    .summary-chart-wrap {
+      height: 200px;
+      flex-shrink: 0;
+      padding: 0 8px;
+    }
+    .summary-bottom {
+      display: flex;
+      gap: 10px;
+      padding: 12px 16px;
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+      flex-shrink: 0;
+    }
+
+    /* ─── Insights screen ────────────────────────────────────────────────────── */
+    .insights-scroll {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 0 14px 32px;
+      min-height: 0;
+    }
+    .profile-card {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: #0f0f0f;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      padding: 20px 18px 16px;
+      margin-bottom: 16px;
+    }
+    .nickname-display {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 2.2rem;
+      color: var(--accent);
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      margin-bottom: 10px;
+      line-height: 1;
+    }
+    .nickname-input {
+      background: #161616;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      color: var(--accent);
+      font-family: 'Bebas Neue', cursive;
+      font-size: 2rem;
+      padding: 4px 12px;
+      width: 100%;
+      margin-bottom: 10px;
+      letter-spacing: 0.03em;
+      display: block;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+    .profile-stats {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .profile-stat {
+      flex: 1;
+      background: #161616;
+      border-radius: 10px;
+      padding: 8px 6px;
+      text-align: center;
+    }
+    .profile-stat-val {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 1.35rem;
+      color: #fff;
+      line-height: 1;
+    }
+    .profile-stat-label {
+      font-size: 0.58rem;
+      letter-spacing: 0.08em;
+      color: #6b6b6b;
+      margin-top: 3px;
+    }
+    .growth-toggle {
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      color: #555;
+      cursor: pointer;
+      padding: 6px 0 2px;
+    }
+    .growth-toggle:active { color: var(--accent); }
+    .growth-chart-wrap { padding-top: 10px; }
+
+    /* ─── History tabs + list ────────────────────────────────────────────────── */
+    .history-tabs {
+      display: flex;
+      gap: 8px;
+      max-width: 240px;
+      margin-bottom: 14px;
+    }
+    .tab-btn {
+      flex: 1;
+      background: #0f0f0f;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px;
+      color: #6b6b6b;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.78rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #4b5563;
+      padding: 8px;
+      transition: all 0.12s;
+    }
+    .tab-btn.tab-active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .history-card {
+      background: #0f0f0f;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .card-meta {
+      font-size: 0.72rem;
+      color: #555;
+      letter-spacing: 0.03em;
+    }
+    .card-actions { display: flex; gap: 4px; }
+    .btn-micro, .btn-del {
       background: transparent;
       border: none;
-      cursor: pointer;
-      transition: background-color 0.35s ease, color 0.35s ease;
-      -webkit-tap-highlight-color: transparent;
+      color: #555;
+      font-size: 0.85rem;
+      padding: 2px 6px;
+      border-radius: 6px;
+      transition: color 0.12s;
     }
-    .mode-btn.active {
-      background: var(--accent);
-      color: #000;
+    .btn-del:active { color: #ef4444; }
+    .btn-micro:active { color: var(--accent); }
+    .card-rate {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 4px;
     }
+    .card-rate-val {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 2.3rem;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .card-rate-label {
+      font-size: 0.7rem;
+      color: #6b6b6b;
+      letter-spacing: 0.1em;
+    }
+    .card-summary {
+      font-size: 0.75rem;
+      color: #888;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+    .breakdown-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .bd-miss   { color: #ef4444; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; }
+    .bd-single { color: #22c55e; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; }
+    .bd-tons   { color: #3b82f6; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; }
+    .bd-hats   { color: var(--accent); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; }
+    .micro-chart-wrap { padding-top: 10px; }
+    .no-history {
+      text-align: center;
+      color: #6b6b6b;
+      padding: 32px 16px;
+      font-size: 0.85rem;
+      letter-spacing: 0.06em;
+    }
+    .btn-clear-history {
+      width: 100%;
+      background: rgba(239,68,68,0.07);
+      border: 1px solid rgba(239,68,68,0.18);
+      border-radius: 12px;
+      color: #ef4444;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 14px;
+      margin-top: 4px;
+      transition: opacity 0.12s;
+    }
+    .btn-clear-history:active { opacity: 0.7; }
 
-    /* ── ACCENT HELPERS ── */
-    .accent-text  { color: var(--accent); transition: color 0.4s ease; }
-    .accent-border { border-color: var(--accent); }
-
-    /* ── CARDS / LAYOUT ── */
-    .insight-card {
+    /* ─── Settings modal ─────────────────────────────────────────────────────── */
+    .settings-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      opacity: 0;
+      transition: opacity 0.28s;
+    }
+    #settings-modal.open .settings-backdrop { opacity: 1; }
+    .settings-sheet {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #111;
+      border-radius: 20px 20px 0 0;
+      padding-bottom: max(24px, env(safe-area-inset-bottom));
+      max-height: 88vh;
+      overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+    }
+    #settings-modal.open .settings-sheet { transform: translateY(0); }
+    .settings-handle {
+      width: 36px;
+      height: 4px;
+      background: rgba(255,255,255,0.18);
+      border-radius: 2px;
+      margin: 12px auto 0;
+    }
+    .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px 10px;
+    }
+    .settings-title { font-size: 0.92rem; letter-spacing: 0.12em; color: #fff; }
+    .settings-close {
+      background: transparent;
+      border: none;
+      color: #666;
+      font-size: 1.05rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: color 0.12s;
+    }
+    .settings-close:active { color: #fff; }
+    .settings-body { padding: 0 22px 16px; }
+    .settings-section-title {
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      color: #888;
+      margin: 18px 0 8px;
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .settings-row-text { flex: 1; margin-right: 14px; }
+    .settings-label { font-size: 0.88rem; letter-spacing: 0.04em; color: #fff; }
+    .settings-sublabel { font-size: 0.72rem; color: #6b6b6b; margin-top: 2px; letter-spacing: 0.02em; }
+    .settings-text-input {
       background: #0f0f0f;
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 22px;
-      padding: 20px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      color: #fff;
+      padding: 7px 10px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.88rem;
+      width: 130px;
+      text-align: right;
+      -webkit-user-select: text;
+      user-select: text;
     }
-    .stat-divider { border-color: rgba(255,255,255,0.05); }
-
-    /* ── VIEW FADE ── */
-    @keyframes fade-up {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
+    .settings-num-input {
+      background: #0f0f0f;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: var(--accent);
+      padding: 7px 8px;
+      font-family: 'Bebas Neue', cursive;
+      font-size: 1.4rem;
+      width: 72px;
+      text-align: center;
+      -webkit-user-select: text;
+      user-select: text;
     }
-    .view-enter { animation: fade-up 0.25s ease forwards; }
+    .settings-text-input:focus, .settings-num-input:focus {
+      border-color: var(--accent);
+    }
+    .backup-action-btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      margin-bottom: 10px;
+      background: #1c1c1e;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      color: #fff;
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      text-align: left;
+      cursor: pointer;
+    }
+    .backup-action-btn:active { background: #2a2a2a; }
 
-    .scrollable { touch-action: auto; overflow-y: auto; overscroll-behavior: auto; }
+    /* iOS-style toggle */
+    .toggle-btn {
+      width: 48px;
+      height: 28px;
+      border-radius: 14px;
+      background: #333;
+      position: relative;
+      border: none;
+      transition: background 0.2s;
+      flex-shrink: 0;
+      padding: 0;
+    }
+    .toggle-btn.toggle-on { background: var(--accent); }
+    .toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.2s;
+      pointer-events: none;
+    }
+    .toggle-btn.toggle-on .toggle-thumb { transform: translateX(20px); }
   </style>
 </head>
 <body>
-  <div id="app" class="h-full flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"></div>
 
-  <script>
-    // ── SVG DART ICONS ──
-    const DART = `<svg viewBox="0 0 48 20" width="34" height="14" xmlns="http://www.w3.org/2000/svg">
-      <polygon points="0,10 8,7 8,13" fill="currentColor"/>
-      <rect x="8" y="8.5" width="21" height="3" rx="1.5" fill="currentColor"/>
-      <rect x="29" y="9.5" width="7" height="1.5" fill="currentColor" opacity="0.55"/>
-      <polygon points="36,5 48,10 36,15 39.5,10" fill="currentColor" opacity="0.4"/>
-    </svg>`;
+  <div id="app"></div>
+  <div id="settings-modal"></div>
 
-    const MISS = `<svg viewBox="0 0 22 22" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
-      <line x1="4" y1="4" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-      <line x1="18" y1="4" x2="4" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-    </svg>`;
+  <script src="src/state.js"></script>
+  <script src="src/logic.js"></script>
+  <script src="src/ui.js"></script>
+  <script src="src/app.js"></script>
 
-    const dartIcons = n => n === 0 ? MISS : Array(n).fill(DART).join('');
-
-    // ── AUDIO ──
-    let audioCtx;
-    function initAudio() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-    }
-    function beep(freq, delay = 0, duration = 0.1) {
-      if (!audioCtx) return;
-      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.type = 'sine'; osc.frequency.value = freq;
-      const t = audioCtx.currentTime + delay;
-      osc.start(t);
-      gain.gain.setValueAtTime(1, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
-      osc.stop(t + duration);
-    }
-    function playRewardSound() {
-      // Ascending four-note fanfare
-      beep(440, 0.00, 0.12);
-      beep(554, 0.15, 0.12);
-      beep(659, 0.30, 0.22);
-      beep(880, 0.52, 0.35);
-    }
-    function playSound(v) {
-      if (v === 0) beep(200);
-      if (v === 1) beep(300);
-      if (v === 2) { beep(400); beep(400, 0.15); }
-      if (v === 3) { beep(500); beep(500, 0.10); beep(500, 0.20); }
-    }
-    function playCricketSound(marks) {
-      if (marks === 0) beep(200);
-      else if (marks <= 3) beep(300 + marks * 50);
-      else if (marks <= 6) { beep(400); beep(500, 0.15); }
-      else { beep(500); beep(600, 0.10); beep(700, 0.20); }
-    }
-
-    // ── STATE ──
-    let currentView     = 'practice';
-    let appMode         = localStorage.getItem('appMode') || 'bull';
-    let lastTapTime     = 0;
-    let sessionStartTime= null;
-    let metricMode      = parseInt(localStorage.getItem('metricMode')) || 0;
-
-    let rounds          = [];
-    let target          = parseInt(localStorage.getItem('defaultTarget')) || 50;
-    let history         = JSON.parse(localStorage.getItem('ocheHistory'))        || [];
-
-    let cricketRounds   = [];
-    const cricketTargets= ['20','19','18','17','16','15','BULL'];
-    let cricketHistory  = JSON.parse(localStorage.getItem('ocheCricketHistory')) || [];
-
-    const formatTime = s => `${Math.floor(s/60)}m ${s%60}s`;
-
-    function applyModeClass() {
-      document.body.classList.toggle('mode-cricket', appMode === 'cricket');
-    }
-    applyModeClass();
-
-    // ── MODE SWITCH ──
-    window.switchMode = (mode) => {
-      if (rounds.length > 0 || cricketRounds.length > 0) {
-        if (!confirm('Switching modes will discard your current session. Continue?')) return;
-      }
-      appMode = mode;
-      localStorage.setItem('appMode', appMode);
-      rounds = []; cricketRounds = []; sessionStartTime = null;
-      applyModeClass();
-      render();
-    };
-
-    window.cycleMetric = () => {
-      metricMode = (metricMode + 1) % 2;
-      localStorage.setItem('metricMode', metricMode);
-      updateStats();
-    };
-
-    // ── BULL LOGIC ──
-    const getTotalBulls = () => rounds.reduce((a,b) => a+b, 0);
-    const getBPR        = () => rounds.length ? (getTotalBulls()/rounds.length).toFixed(2) : "0.00";
-    const getCount      = v  => rounds.filter(x => x === v).length;
-
-    window.tapBull = (val, btn) => {
-      const now = Date.now();
-      if (now - lastTapTime < 50) return;
-      lastTapTime = now;
-      if (!sessionStartTime) sessionStartTime = Date.now();
-      initAudio(); playSound(val);
-      if (btn) { btn.classList.add(`flash-${val}`); setTimeout(() => btn.classList.remove(`flash-${val}`), 100); }
-      rounds.push(val);
-      updateStats();
-      if (getTotalBulls() >= target) setTimeout(endSession, 150);
-    };
-
-    // ── CRICKET LOGIC ──
-    const getCricketMPR = () => {
-      const total = cricketRounds.reduce((s,r) => s + r.marks, 0);
-      return cricketRounds.length ? (total / cricketRounds.length).toFixed(2) : "0.00";
-    };
-    const getTotalMarks = () => cricketRounds.reduce((s,r) => s + r.marks, 0);
-
-    window.tapCricket = (marks, btn) => {
-      const now = Date.now();
-      if (now - lastTapTime < 50) return;
-      lastTapTime = now;
-      if (!sessionStartTime) sessionStartTime = Date.now();
-      initAudio();
-      const fc = marks === 0 ? 'flash-c-miss' : 'flash-c-hit';
-      if (btn) { btn.classList.add(fc); setTimeout(() => btn.classList.remove(fc), 100); }
-      playCricketSound(marks);
-      cricketRounds.push({ marks });
-      if (cricketRounds.length >= 7) { updateStats(); setTimeout(endSession, 250); }
-      else render();
-    };
-
-    // ── SHARED ACTIONS ──
-    window.undoLast = () => {
-      initAudio(); beep(150);
-      if (appMode === 'bull' && rounds.length > 0) {
-        rounds.pop();
-        if (rounds.length === 0) sessionStartTime = null;
-        updateStats();
-      } else if (appMode === 'cricket' && cricketRounds.length > 0) {
-        cricketRounds.pop();
-        if (cricketRounds.length === 0) sessionStartTime = null;
-        render();
-      }
-    };
-
-    window.updateTarget = (e) => {
-      const v = parseInt(e.target.value);
-      if (v > 0) { target = v; localStorage.setItem('defaultTarget', target); }
-    };
-
-    window.endSession = () => {
-      let dur = "0m 0s";
-      const arr = appMode === 'bull' ? rounds : cricketRounds;
-      if (sessionStartTime && arr.length > 0)
-        dur = formatTime(Math.floor((Date.now() - sessionStartTime) / 1000));
-      const dateStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-      if (appMode === 'bull' && rounds.length > 0) {
-        history.unshift({ date:dateStr, duration:dur, target, bulls:getTotalBulls(), rounds:rounds.length, bpr:getBPR(),
-          c0:getCount(0), c1:getCount(1), c2:getCount(2), c3:getCount(3), rawRounds:[...rounds] });
-        localStorage.setItem('ocheHistory', JSON.stringify(history));
-      } else if (appMode === 'cricket' && cricketRounds.length > 0) {
-        cricketHistory.unshift({ date:dateStr, duration:dur, mpr:getCricketMPR(), rounds:cricketRounds.length,
-          totalMarks:getTotalMarks(), rawRounds:[...cricketRounds] });
-        localStorage.setItem('ocheCricketHistory', JSON.stringify(cricketHistory));
-      }
-      sessionStartTime = null;
-      initAudio();
-      playRewardSound();
-      setTimeout(() => { currentView = 'summary'; render(); }, 750);
-    };
-
-    window.restartSession = () => { rounds=[]; cricketRounds=[]; sessionStartTime=null; currentView='practice'; render(); };
-    window.toggleInsights  = () => { currentView = currentView==='insights' ? 'practice' : 'insights'; render(); };
-
-    window.deleteRecord = (i) => {
-      if (!confirm('Delete this session?')) return;
-      if (appMode==='bull') { history.splice(i,1); localStorage.setItem('ocheHistory',JSON.stringify(history)); }
-      else { cricketHistory.splice(i,1); localStorage.setItem('ocheCricketHistory',JSON.stringify(cricketHistory)); }
-      render();
-    };
-
-    window.clearHistory = () => {
-      if (!confirm('Clear all history for this mode?')) return;
-      if (appMode==='bull') { history=[]; localStorage.removeItem('ocheHistory'); }
-      else { cricketHistory=[]; localStorage.removeItem('ocheCricketHistory'); }
-      render();
-    };
-
-    // ── FAST UPDATER ──
-    function punchScore() {
-      const el = document.getElementById('score-display') || document.getElementById('cricket-marks-display');
-      if (!el) return;
-      el.classList.remove('score-punch');
-      void el.offsetWidth;
-      el.classList.add('score-punch');
-    }
-
-    function updateStats() {
-      const undoEl   = document.getElementById('undo-btn-container');
-      const labelEl  = document.getElementById('metric-label');
-      const valueEl  = document.getElementById('metric-value');
-      const roundsEl = document.getElementById('rounds-display');
-
-      if (appMode === 'bull') {
-        const scoreEl = document.getElementById('score-display');
-        if (scoreEl) {
-          const prev = scoreEl.innerText;
-          scoreEl.innerText = getTotalBulls();
-          if (prev !== scoreEl.innerText) punchScore();
-        }
-        if (roundsEl) roundsEl.innerText = rounds.length;
-        if (undoEl)   undoEl.innerHTML   = rounds.length > 0
-          ? `<button onclick="undoLast()" class="stat-label active:text-white" style="color:#3f3f3f">Undo</button>` : '';
-        if (labelEl && valueEl) {
-          if (metricMode === 0) {
-            labelEl.innerText  = "BPR";
-            valueEl.innerText  = getBPR();
-            valueEl.style.color= "white";
-          } else {
-            labelEl.innerText  = "";
-            valueEl.innerText  = "—";
-            valueEl.style.color= "#222";
-          }
-        }
-      } else if (appMode === 'cricket') {
-        const marksEl = document.getElementById('cricket-marks-display');
-        if (marksEl) marksEl.innerText = `${getTotalMarks()} / 60`;
-        if (roundsEl) roundsEl.innerText = cricketRounds.length;
-        if (undoEl)   undoEl.innerHTML   = cricketRounds.length > 0
-          ? `<button onclick="undoLast()" class="stat-label active:text-white" style="color:#3f3f3f">Undo</button>` : '';
-        if (labelEl && valueEl) {
-          if (metricMode === 0) {
-            labelEl.innerText  = "MPR";
-            valueEl.innerText  = getCricketMPR();
-            valueEl.style.color= "var(--accent)";
-          } else {
-            labelEl.innerText  = "";
-            valueEl.innerText  = "—";
-            valueEl.style.color= "#222";
-          }
-        }
-      }
-    }
-
-    // ── CHARTS ──
-    window.renderSessionChart = () => {
-      const ctx = document.getElementById('sessionChart');
-      if (!ctx) return;
-      const ac  = appMode==='bull' ? '#f97316' : '#a855f7';
-      const abg = appMode==='bull' ? 'rgba(249,115,22,0.12)' : 'rgba(168,85,247,0.12)';
-      if (appMode==='bull' && rounds.length > 0) {
-        new Chart(ctx, { type:'line', data:{
-          labels: rounds.map((_,i)=>i+1),
-          datasets:[{ data:rounds, borderColor:ac, backgroundColor:abg,
-            borderWidth:2, pointBackgroundColor:'#fff', pointRadius:2, fill:true, tension:0.3 }]
-        }, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
-          scales:{ y:{min:0,max:3,ticks:{stepSize:1,color:'#3f3f3f'},grid:{color:'#151515'}},
-                   x:{grid:{display:false},ticks:{color:'#3f3f3f',maxTicksLimit:10}} } } });
-      } else if (appMode==='cricket' && cricketRounds.length > 0) {
-        const rd = cricketTargets.map((_,i) => cricketRounds[i] ? cricketRounds[i].marks : 0);
-        new Chart(ctx, { type:'radar', data:{
-          labels: cricketTargets,
-          datasets:[{ data:rd, borderColor:ac, backgroundColor:abg, pointBackgroundColor:'#fff', borderWidth:2 }]
-        }, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
-          scales:{ r:{ angleLines:{color:'#1a1a1a'}, grid:{color:'#1a1a1a'},
-            pointLabels:{color:'#9ca3af',font:{size:14,family:'Rajdhani'}},
-            ticks:{display:false,min:0,max:9} } } } });
-      }
-    };
-
-    window.toggleMicroChart = (index) => {
-      const container = document.getElementById(`chart-container-${index}`);
-      container.classList.toggle('hidden');
-      if (!container.classList.contains('hidden') && !Chart.getChart(`microChart-${index}`)) {
-        const ctx = document.getElementById(`microChart-${index}`);
-        const ac  = appMode==='bull' ? '#f97316' : '#a855f7';
-        const abg = appMode==='bull' ? 'rgba(249,115,22,0.12)' : 'rgba(168,85,247,0.12)';
-        if (appMode==='bull') {
-          const raw = history[index].rawRounds || history[index].rawVisits;
-          new Chart(ctx, { type:'line', data:{
-            labels:raw.map((_,i)=>i+1),
-            datasets:[{data:raw,borderColor:ac,backgroundColor:abg,borderWidth:2,pointBackgroundColor:'#fff',pointRadius:2,fill:true,tension:0.3}]
-          }, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
-            scales:{y:{min:0,max:3,ticks:{color:'#3f3f3f'},grid:{color:'#151515'}},x:{display:false}}} });
-        } else {
-          const s  = cricketHistory[index];
-          const rd = cricketTargets.map((_,i) => s.rawRounds[i] ? s.rawRounds[i].marks : 0);
-          new Chart(ctx, { type:'radar', data:{
-            labels:cricketTargets,
-            datasets:[{data:rd,borderColor:ac,backgroundColor:abg,pointBackgroundColor:'#fff',borderWidth:2}]
-          }, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
-            scales:{r:{angleLines:{color:'#1a1a1a'},grid:{color:'#1a1a1a'},pointLabels:{color:'#9ca3af'},ticks:{display:false,min:0,max:9}}}} });
-        }
-      }
-    };
-
-    // ── RENDER ENGINE ──
-    const app = document.getElementById('app');
-
-    function render() {
-      applyModeClass();
-
-      const headerToggle = `
-        <div class="flex justify-center mt-2 mb-2 w-full">
-          <div class="mode-toggle w-64">
-            <button onclick="switchMode('bull')"    class="mode-btn ${appMode==='bull'    ? 'active' : ''}">🎯 Bull Race</button>
-            <button onclick="switchMode('cricket')" class="mode-btn ${appMode==='cricket' ? 'active' : ''}">⦻ CR. COUNT-UP</button>
-          </div>
-        </div>`;
-
-      if (currentView === 'practice') {
-        const currentTargetIdx = cricketRounds.length;
-        const isBullStage      = currentTargetIdx === 6;
-
-        const bullGrid = `
-          <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-3 px-4 pb-6">
-            <button ontouchstart="tapBull(0,this)" class="btn-tap btn-target">
-              <span class="btn-num">0</span>
-              <span class="btn-icons">${dartIcons(0)}</span>
-            </button>
-            <button ontouchstart="tapBull(1,this)" class="btn-tap btn-target">
-              <span class="btn-num">1</span>
-              <span class="btn-icons">${dartIcons(1)}</span>
-            </button>
-            <button ontouchstart="tapBull(2,this)" class="btn-tap btn-target">
-              <span class="btn-num">2</span>
-              <span class="btn-icons">${dartIcons(2)}</span>
-            </button>
-            <button ontouchstart="tapBull(3,this)" class="btn-tap btn-target">
-              <span class="btn-num">3</span>
-              <span class="btn-icons">${dartIcons(3)}</span>
-            </button>
-          </div>`;
-
-        const cricketGrid = `
-          <div class="flex-1 grid grid-cols-3 grid-rows-4 gap-3 px-4 pb-6">
-            ${[1,2,3,4,5,6].map(n=>`<button ontouchstart="tapCricket(${n},this)" class="btn-cricket btn-target">${n}</button>`).join('')}
-            ${[7,8,9].map(n=>`<button ontouchstart="${isBullStage?'':` tapCricket(${n},this)`}" class="btn-cricket btn-target ${isBullStage?'opacity-10':''}">${n}</button>`).join('')}
-            <div></div>
-            <button ontouchstart="tapCricket(0,this)" class="btn-cricket btn-target">0</button>
-            <div></div>
-          </div>`;
-
-        app.innerHTML = `
-          <div class="view-enter flex justify-between px-6 py-3 z-10 relative">
-            <button onclick="endSession()"    class="stat-label active:text-white" style="color:#3f3f3f">End</button>
-            <button onclick="toggleInsights()" class="stat-label active:text-white" style="color:#3f3f3f">Insights</button>
-          </div>
-          ${headerToggle}
-
-          <div class="flex-none flex flex-col items-center justify-center py-2 h-40">
-            ${appMode==='bull' ? `
-              <div class="stat-label mb-1">Bulls / Target</div>
-              <div class="flex items-baseline justify-center w-full px-2 gap-1">
-                <span id="score-display" class="score-hero" style="font-size:clamp(3.5rem,14vw,6rem);line-height:1">${getTotalBulls()}</span>
-                <span class="font-score" style="font-size:clamp(2rem,8vw,3.5rem);color:#222;line-height:1">/</span>
-                <input type="number" value="${target}" onchange="updateTarget(event)" style="font-size:clamp(2rem,8vw,3.5rem);line-height:1;width:3ch;text-align:center;padding:0;margin:0" />
-              </div>` : `
-              <div class="stat-label mb-1">Target</div>
-              <div class="score-hero text-center" style="font-size:clamp(3.5rem,14vw,6rem);line-height:1">
-                <span id="cricket-target-display">${cricketTargets[currentTargetIdx]||'DONE'}</span>
-              </div>
-              <div class="stat-label mt-2">Marks: <span id="cricket-marks-display" class="accent-text font-score" style="font-size:1.4rem">${getTotalMarks()} / 60</span></div>`}
-          </div>
-
-          <div class="flex justify-between items-end px-6 pb-4">
-            <div class="flex flex-col">
-              <span class="stat-label">Rounds</span>
-              <span id="rounds-display" class="stat-value">${appMode==='bull' ? rounds.length : cricketRounds.length}</span>
-            </div>
-            <div class="flex items-end gap-6">
-              <div id="undo-btn-container" class="flex items-end mb-0.5"></div>
-              <div onclick="cycleMetric()" class="cursor-pointer active:opacity-60 flex flex-col items-end">
-                <span id="metric-label" class="stat-label">${appMode==='bull' ? 'BPR' : 'MPR'}</span>
-                <span id="metric-value"  class="stat-value">0.00</span>
-              </div>
-            </div>
-          </div>
-
-          ${appMode==='bull' ? bullGrid : cricketGrid}`;
-        updateStats();
-
-      } else if (currentView === 'summary') {
-        app.innerHTML = `
-          <div class="view-enter flex-1 scrollable flex flex-col items-center p-8 text-center">
-            <div class="stat-label mb-1">Session Complete</div>
-            <div class="score-hero mb-8" style="font-size:3.2rem">Summary</div>
-
-            <div class="insight-card w-full max-w-xs mb-6 text-left">
-              ${appMode==='bull' ? `
-                <div class="flex justify-between border-b stat-divider pb-3 mb-3">
-                  <span class="stat-label self-center">Bulls</span>
-                  <span class="score-display accent-text" style="font-size:1.8rem">${getTotalBulls()} / ${target}</span>
-                </div>
-                <div class="flex justify-between border-b stat-divider pb-3 mb-3">
-                  <span class="stat-label self-center">Rounds</span>
-                  <span class="score-display text-white" style="font-size:1.8rem">${rounds.length}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="stat-label self-center">BPR</span>
-                  <span class="score-display text-white" style="font-size:1.8rem">${getBPR()}</span>
-                </div>` : `
-                <div class="flex justify-between border-b stat-divider pb-3 mb-3">
-                  <span class="stat-label self-center">Marks</span>
-                  <span class="score-display accent-text" style="font-size:1.8rem">${getTotalMarks()} / 60</span>
-                </div>
-                <div class="flex justify-between border-b stat-divider pb-3 mb-3">
-                  <span class="stat-label self-center">Rounds</span>
-                  <span class="score-display text-white" style="font-size:1.8rem">${cricketRounds.length} / 7</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="stat-label self-center">MPR</span>
-                  <span class="score-display text-white" style="font-size:1.8rem">${getCricketMPR()}</span>
-                </div>`}
-            </div>
-
-            <div class="w-full max-w-xs h-56 mb-8">
-              <canvas id="sessionChart"></canvas>
-            </div>
-
-            <button onclick="restartSession()" class="w-full max-w-xs py-4 rounded-2xl font-label text-lg active:opacity-75 transition-opacity"
-              style="background:var(--accent);color:#000;letter-spacing:0.1em">
-              Restart Practice
-            </button>
-          </div>`;
-        setTimeout(window.renderSessionChart, 0);
-
-      } else if (currentView === 'insights') {
-        const activeHistory = appMode==='bull' ? history : cricketHistory;
-
-        app.innerHTML = `
-          <div class="view-enter flex justify-between items-center px-6 py-4 border-b" style="border-color:rgba(255,255,255,0.05)">
-            <button onclick="toggleInsights()" class="accent-text font-label text-base active:opacity-70">← Back</button>
-            <span class="font-label text-white text-lg">Insights</span>
-            <div class="w-12"></div>
-          </div>
-          <div class="pt-2 pb-2 border-b" style="border-color:rgba(255,255,255,0.05)">
-            ${headerToggle}
-          </div>
-          <div class="flex-1 scrollable px-4 pb-10 pt-5 space-y-4">
-            ${activeHistory.length === 0
-              ? `<div class="text-center mt-12 stat-label" style="font-size:1rem">No sessions recorded yet.</div>`
-              : activeHistory.map((h, index) => `
-                <div class="insight-card relative">
-                  <div class="flex justify-between items-start mb-3 border-b stat-divider pb-3">
-                    <div class="stat-label">${h.date} · ⏱ ${h.duration||'-'}</div>
-                    <button onclick="deleteRecord(${index})" class="stat-label px-3 py-1 rounded-lg active:text-red-500 transition-colors" style="background:#181818">✕</button>
-                  </div>
-                  <div class="flex justify-between items-center mb-4">
-                    <div>
-                      <div class="accent-text score-display" style="font-size:2.8rem;line-height:1">
-                        ${appMode==='bull' ? (h.bpr||'0.00') : (h.mpr||'0.00')}
-                        <span class="stat-label ml-1">${appMode==='bull' ? 'BPR' : 'MPR'}</span>
-                      </div>
-                      <div class="stat-label mt-1">
-                        ${appMode==='bull'
-                          ? `${h.bulls}/${h.target} Bulls · ${h.rounds||h.visits} rounds`
-                          : `${h.totalMarks}/60 Marks · 7 rounds`}
-                      </div>
-                    </div>
-                    ${(h.rawRounds||h.rawVisits) ? `
-                      <button onclick="toggleMicroChart(${index})" class="font-label text-sm px-3 py-2 rounded-xl active:opacity-60"
-                        style="background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);letter-spacing:0.06em">
-                        📈 Chart
-                      </button>` : ''}
-                  </div>
-                  ${appMode==='bull' ? `
-                    <div class="flex justify-between text-center border-t stat-divider pt-3">
-                      <div><span class="stat-label block">Miss</span><span class="score-display text-red-500" style="font-size:1.5rem">${h.c0!==undefined?h.c0:'-'}</span></div>
-                      <div><span class="stat-label block">1</span><span class="score-display text-green-400" style="font-size:1.5rem">${h.c1!==undefined?h.c1:'-'}</span></div>
-                      <div><span class="stat-label block">2</span><span class="score-display text-blue-400" style="font-size:1.5rem">${h.c2!==undefined?h.c2:'-'}</span></div>
-                      <div><span class="stat-label block">3</span><span class="score-display accent-text" style="font-size:1.5rem">${h.c3!==undefined?h.c3:'-'}</span></div>
-                    </div>` : ''}
-                  ${(h.rawRounds||h.rawVisits) ? `
-                    <div id="chart-container-${index}" class="hidden w-full ${appMode==='bull'?'h-32':'h-56'} mt-4 pt-4 border-t stat-divider">
-                      <canvas id="microChart-${index}"></canvas>
-                    </div>` : ''}
-                </div>`).join('')}
-            ${activeHistory.length > 0
-              ? `<button onclick="clearHistory()" class="w-full mt-6 py-4 font-label text-red-900 active:text-red-500 transition-colors" style="font-size:1rem">Clear All History</button>`
-              : ''}
-          </div>`;
-      }
-    }
-
-    render();
-  </script>
 </body>
 </html>
