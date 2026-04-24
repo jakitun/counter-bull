@@ -815,6 +815,69 @@
       pointer-events: none;
     }
     .toggle-btn.toggle-on .toggle-thumb { transform: translateX(20px); }
+
+    /* ─── Heatmap card ───────────────────────────────────────────────────────── */
+    .heatmap-card {
+      background: #0f0f0f;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 22px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .heatmap-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .heatmap-toggle {
+      display: flex;
+      background: #1a1a1a;
+      border-radius: 9999px;
+      padding: 3px;
+      gap: 2px;
+    }
+    .heatmap-tab {
+      padding: 4px 12px;
+      border-radius: 9999px;
+      border: none;
+      background: transparent;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      color: #555;
+      cursor: pointer;
+    }
+    .heatmap-tab-active {
+      background: #2a2a2a;
+      color: #fff;
+    }
+    .heatmap-board {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .heatmap-legend {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding: 0 8px;
+    }
+    .legend-bar {
+      flex: 1;
+      height: 4px;
+      border-radius: 9999px;
+      background: linear-gradient(to right, #1a2a4a, #1a4a8a, #4a90d9, #f97316, #fff176);
+    }
+    .legend-cold, .legend-hot {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      color: #555;
+    }
   </style>
 </head>
 <body>

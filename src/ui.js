@@ -33,6 +33,7 @@ var sessionChartInst    = null;   // Chart.js instance for summary chart
 var macroChartInst      = null;   // Chart.js instance for macro growth chart
 var microChartInst      = null;   // Chart.js instance for micro history card chart
 var openMicroIndex      = -1;     // which history card has its chart expanded
+window.heatmapMode = window.heatmapMode || 'alltime';
 
 // ─── applyModeClass ───────────────────────────────────────────────────────────
 
@@ -467,6 +468,178 @@ window.toggleMicroChart = function(index) {
   var record  = arr[index];
   var yMax    = isBull ? 3 : (record.target === 'B' ? 6 : 9);
   renderMicroChart('micro-canvas-' + index, record.rawRounds, isBull, yMax);
+};
+
+// ─── Heatmap ─────────────────────────────────────────────────────────────────
+
+window.calcHeatmap = function(recentOnly) {
+  var targets = ['20', '19', '18', '17', '16', '15'];
+  var heat = {};
+
+  for (var t = 0; t < targets.length; t++) {
+    var tgt = targets[t];
+    var sessions = [];
+    for (var i = 0; i < window.cricketHistory.length; i++) {
+      if (window.cricketHistory[i].target === tgt) {
+        sessions.push(window.cricketHistory[i]);
+      }
+    }
+    if (recentOnly) { sessions = sessions.slice(-5); }
+    if (sessions.length === 0) { heat[tgt] = null; continue; }
+    var totalMarks = 0, totalRounds = 0;
+    for (var j = 0; j < sessions.length; j++) {
+      totalMarks  += sessions[j].marks  || 0;
+      totalRounds += sessions[j].rounds || 0;
+    }
+    heat[tgt] = totalRounds > 0 ? totalMarks / totalRounds : null;
+  }
+
+  var bullSessions = recentOnly ? window.ocheHistory.slice(-5) : window.ocheHistory;
+  if (bullSessions.length > 0) {
+    var bTotalBulls = 0, bTotalRounds = 0;
+    for (var k = 0; k < bullSessions.length; k++) {
+      bTotalBulls  += bullSessions[k].bulls  || 0;
+      bTotalRounds += bullSessions[k].rounds || 0;
+    }
+    heat['bull'] = bTotalRounds > 0 ? bTotalBulls / bTotalRounds : null;
+  } else {
+    heat['bull'] = null;
+  }
+
+  return heat;
+};
+
+window.heatColor = function(val, maxVal) {
+  if (val === null || val === undefined) return '#1a1a1a';
+  var ratio = Math.min(val / maxVal, 1);
+  var stops = [
+    [26,  42,  74],
+    [26,  74,  138],
+    [74,  144, 217],
+    [249, 115, 22],
+    [255, 241, 118]
+  ];
+  var scaled = ratio * (stops.length - 1);
+  var lo = Math.floor(scaled);
+  var hi = Math.min(lo + 1, stops.length - 1);
+  var t  = scaled - lo;
+  var r  = Math.round(stops[lo][0] + t * (stops[hi][0] - stops[lo][0]));
+  var g  = Math.round(stops[lo][1] + t * (stops[hi][1] - stops[lo][1]));
+  var b  = Math.round(stops[lo][2] + t * (stops[hi][2] - stops[lo][2]));
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+};
+
+window.buildHeatmapSVG = function(heat) {
+  var cx = 140, cy = 140;
+  var cricketSet = { '20': true, '19': true, '18': true, '17': true, '16': true, '15': true };
+  var numbers = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+  var centers  = [0, 18, 36, 54, 72, 90, 108, 126, 144, 162, 180, 198, 216, 234, 252, 270, 288, 306, 324, 342];
+
+  function ptc(r, angleDeg) {
+    var rad = (angleDeg - 90) * Math.PI / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+
+  function segPath(r1, r2, startDeg, endDeg) {
+    var s1 = ptc(r1, startDeg), e1 = ptc(r1, endDeg);
+    var s2 = ptc(r2, startDeg), e2 = ptc(r2, endDeg);
+    return 'M ' + s1.x + ' ' + s1.y
+      + ' A ' + r1 + ' ' + r1 + ' 0 0 1 ' + e1.x + ' ' + e1.y
+      + ' L ' + e2.x + ' ' + e2.y
+      + ' A ' + r2 + ' ' + r2 + ' 0 0 0 ' + s2.x + ' ' + s2.y
+      + ' Z';
+  }
+
+  var svg = '<svg width="280" height="280" viewBox="0 0 280 280" style="overflow:visible">'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="140" fill="#0a0a0a"/>';
+
+  for (var s = 0; s < 20; s++) {
+    var num = numbers[s];
+    var ca  = centers[s];
+    var sa  = ca - 9, ea = ca + 9;
+    var key = String(num);
+
+    if (cricketSet[key]) {
+      var col       = heatColor(heat[key], 9);
+      var colTreble = heatColor(heat[key] !== null ? heat[key] * 0.55 : null, 9);
+      svg += '<path d="' + segPath(24, 95,  sa, ea) + '" fill="#111"/>';
+      svg += '<path d="' + segPath(95, 107, sa, ea) + '" fill="' + colTreble + '"/>';
+      svg += '<path d="' + segPath(107, 128, sa, ea) + '" fill="' + col + '"/>';
+      svg += '<path d="' + segPath(128, 140, sa, ea) + '" fill="' + col + '"/>';
+    } else {
+      svg += '<path d="' + segPath(24, 140, sa, ea) + '" fill="#111"/>';
+    }
+  }
+
+  for (var d = 0; d < 20; d++) {
+    var la = centers[d] - 9;
+    var p1 = ptc(24, la), p2 = ptc(140, la);
+    svg += '<line x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y
+      + '" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>';
+  }
+
+  svg += '<circle cx="' + cx + '" cy="' + cy + '" r="95"  fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>';
+  svg += '<circle cx="' + cx + '" cy="' + cy + '" r="107" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>';
+  svg += '<circle cx="' + cx + '" cy="' + cy + '" r="128" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>';
+  svg += '<circle cx="' + cx + '" cy="' + cy + '" r="140" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>';
+
+  var bullOuterCol = heatColor(heat['bull'] !== null ? heat['bull'] * 0.7 : null, 3);
+  var bullInnerCol = heatColor(heat['bull'], 3);
+  svg += '<circle cx="' + cx + '" cy="' + cy + '" r="24" fill="' + bullOuterCol + '"/>';
+  svg += '<circle cx="' + cx + '" cy="' + cy + '" r="12" fill="' + bullInnerCol + '"/>';
+  svg += '<circle cx="' + cx + '" cy="' + cy + '" r="24" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>';
+  svg += '<circle cx="' + cx + '" cy="' + cy + '" r="12" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>';
+
+  for (var li = 0; li < 20; li++) {
+    var lnum = numbers[li];
+    var lkey = String(lnum);
+    if (!cricketSet[lkey]) continue;
+    var lp = ptc(148, centers[li]);
+    svg += '<text x="' + lp.x + '" y="' + lp.y + '"'
+      + ' text-anchor="middle" dominant-baseline="central"'
+      + ' font-family="Rajdhani,sans-serif" font-weight="700" font-size="10"'
+      + ' fill="rgba(255,255,255,0.5)">' + lnum + '</text>';
+  }
+
+  svg += '<text x="' + cx + '" y="' + cy + '"'
+    + ' text-anchor="middle" dominant-baseline="central"'
+    + ' font-family="Rajdhani,sans-serif" font-weight="700" font-size="7"'
+    + ' fill="rgba(255,255,255,0.5)">B</text>';
+
+  svg += '</svg>';
+  return svg;
+};
+
+window.buildHeatmapCard = function() {
+  var isRecent = window.heatmapMode === 'recent';
+  var heat     = calcHeatmap(isRecent);
+  return '<div class="heatmap-card">'
+    + '<div class="heatmap-header">'
+    +   '<span class="stat-label">SKILL MAP</span>'
+    +   '<div class="heatmap-toggle">'
+    +     '<button class="heatmap-tab' + (!isRecent ? ' heatmap-tab-active' : '') + '"'
+    +     ' ontouchstart="setHeatmapMode(\'alltime\');event.preventDefault()"'
+    +     ' onclick="setHeatmapMode(\'alltime\')">ALL-TIME</button>'
+    +     '<button class="heatmap-tab' + (isRecent ? ' heatmap-tab-active' : '') + '"'
+    +     ' ontouchstart="setHeatmapMode(\'recent\');event.preventDefault()"'
+    +     ' onclick="setHeatmapMode(\'recent\')">RECENT</button>'
+    +   '</div>'
+    + '</div>'
+    + '<div class="heatmap-board">'
+    +   buildHeatmapSVG(heat)
+    + '</div>'
+    + '<div class="heatmap-legend">'
+    +   '<span class="legend-cold">COLD</span>'
+    +   '<div class="legend-bar"></div>'
+    +   '<span class="legend-hot">HOT</span>'
+    + '</div>'
+    + '</div>';
+};
+
+window.setHeatmapMode = function(mode) {
+  window.heatmapMode = mode;
+  var card = document.getElementById('heatmap-card-wrap');
+  if (card) card.innerHTML = buildHeatmapCard();
 };
 
 // ─── Render helpers & action handlers ────────────────────────────────────────
@@ -1043,6 +1216,7 @@ function renderInsights() {
   return headerBarHTML()
     + '<div class="insights-scroll">'
     + profileCard
+    + '<div id="heatmap-card-wrap">' + buildHeatmapCard() + '</div>'
     + tabsHtml
     + '<div class="history-list">' + cardsHtml + '</div>'
     + (!isAll ? '<button class="btn-clear-history font-label" onclick="clearHistory()">CLEAR HISTORY</button>' : '')
