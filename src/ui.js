@@ -88,9 +88,12 @@ window.updateStats = function() {
     }
   }
 
-  // Rounds counter
-  var roundsEl = document.getElementById('rounds-value');
-  if (roundsEl) { roundsEl.textContent = rounds; }
+  // Rounds zone
+  var rd = getRoundDisplay();
+  var roundLabel = document.getElementById('round-label');
+  var roundValue = document.getElementById('round-value');
+  if (roundLabel) roundLabel.innerText = rd.label;
+  if (roundValue) roundValue.innerText = rd.value;
 
   // Undo button state
   var undoBtn = document.getElementById('undo-btn');
@@ -146,6 +149,12 @@ window.cycleMetric = function() {
   } else {
     metricMode = metricMode === 0 ? 2 : 0; // cricket: 0→2→0 (no Hit%)
   }
+  updateStats();
+};
+
+window.cycleRoundMode = function() {
+  window.settings.roundMode = (window.settings.roundMode + 1) % 3;
+  window.saveSettings();
   updateStats();
 };
 
@@ -690,19 +699,15 @@ window.buildBullGrid = function() {
 };
 
 window.buildCricketNumpad = function() {
-  var isBullTarget = window.cricketTarget === 'B';
   var rows = [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
   var html = '<div class="cricket-numpad">';
   for (var r = 0; r < rows.length; r++) {
     html += '<div class="numpad-row">';
     for (var c = 0; c < rows[r].length; c++) {
-      var m        = rows[r][c];
-      var disabled = isBullTarget && (m === 7 || m === 8 || m === 9);
-      html += '<button class="btn-cricket' + (disabled ? ' btn-disabled' : '') + '"'
-        + (disabled ? ' disabled' : '')
-        + (disabled ? '' : ' ontouchstart="handleCricketTap(' + m + ',this);event.preventDefault()"')
-        + (disabled ? '' : ' onclick="handleCricketTap(' + m + ',this)"')
-        + '>'
+      var m = rows[r][c];
+      html += '<button class="btn-cricket"'
+        + ' ontouchstart="handleCricketTap(' + m + ',this);event.preventDefault()"'
+        + ' onclick="handleCricketTap(' + m + ',this)">'
         + m
         + '</button>';
     }
@@ -753,6 +758,8 @@ function renderPractice() {
     metricValue = rounds === 0 ? '—' : rate.toFixed(2);
   }
 
+  var rd = getRoundDisplay();
+
   var metricBand = '<div id="metric-band" class="metric-band">'
     + '<div id="metric-left" class="metric-left"'
     + (window.settings.zenMode ? ' style="visibility:hidden"' : '')
@@ -761,10 +768,12 @@ function renderPractice() {
     + '<div id="metric-value" class="metric-value score-display">' + metricValue + '</div>'
     + '</div>'
     + '<div id="score-display" class="score-hero">' + score + '</div>'
-    + '<div id="metric-right" class="metric-right"'
-    + (window.settings.zenMode ? ' style="visibility:hidden"' : '') + '>'
-    + '<div class="metric-r-label font-label">R</div>'
-    + '<div id="rounds-value" class="metric-r-value score-display">' + rounds + '</div>'
+    + '<div id="metric-right" onclick="cycleRoundMode()"'
+    + ' ontouchstart="cycleRoundMode();event.preventDefault()"'
+    + ' class="metric-right" style="cursor:pointer'
+    + (window.settings.zenMode ? ';visibility:hidden' : '') + '">'
+    + '<span id="round-label" class="metric-label">' + rd.label + '</span>'
+    + '<span id="round-value" class="metric-value score-display">' + rd.value + '</span>'
     + '</div>'
     + '</div>';
 
@@ -908,6 +917,14 @@ function renderInsights() {
   var allMPR   = getAllTimeMPR();
   var sesTime  = getTotalSessionTime();
 
+  var totalDarts = 0;
+  for (var tdi = 0; tdi < window.ocheHistory.length; tdi++) {
+    totalDarts += (window.ocheHistory[tdi].rounds || 0) * 3;
+  }
+  for (var tdj = 0; tdj < window.cricketHistory.length; tdj++) {
+    totalDarts += (window.cricketHistory[tdj].rounds || 0) * 3;
+  }
+
   // Trend arrows — compare avg of last 3 sessions vs previous 3
   var bprArrow = '', bprArrowColor = '';
   if (window.ocheHistory.length >= 4) {
@@ -963,6 +980,10 @@ function renderInsights() {
     + '<div class="profile-stat">'
     + '<div class="profile-stat-val score-display">' + sesTime + '</div>'
     + '<div class="profile-stat-label font-label">SESSION TIME</div>'
+    + '</div>'
+    + '<div class="profile-stat">'
+    + '<div class="profile-stat-val score-display">' + totalDarts + '</div>'
+    + '<div class="profile-stat-label font-label">TOTAL DARTS</div>'
     + '</div>'
     + '</div>'
     + '<div class="growth-toggle font-label"'

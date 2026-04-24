@@ -268,6 +268,19 @@ window.undoLast = function() {
   if (window.render) { window.render(); }
 };
 
+window.getRoundDisplay = function() {
+  var rounds = window.appMode === 'bull'
+    ? window.rounds.length
+    : window.cricketRounds.length;
+  if (window.settings.roundMode === 0) {
+    return { label: 'R', value: rounds };
+  } else if (window.settings.roundMode === 1) {
+    return { label: 'D', value: rounds * 3 };
+  } else {
+    return { label: '', value: '—' };
+  }
+};
+
 // ─── Profile stats ────────────────────────────────────────────────────────────
 
 window.getAllTimeBPR = function() {

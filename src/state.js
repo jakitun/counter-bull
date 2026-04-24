@@ -17,7 +17,7 @@
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-window.CRICKET_TARGETS = ['20', '19', '18', '17', '16', '15', 'B'];
+window.CRICKET_TARGETS = ['20', '19', '18', '17', '16', '15'];
 
 // ─── Runtime state (defaults — overwritten by loadState) ─────────────────────
 
@@ -44,7 +44,8 @@ window.settings = {
   zenMode:       false,      // hides entire metric band on practice screen
   defaultTarget: 50,         // bull session auto-ends when bulls hit this number (max 999)
   cricketRounds: 10,         // rounds per cricket target drill (max 999)
-  nickname:      'Player 1'  // display name, saved as s_nickname
+  nickname:      'Player 1', // display name, saved as s_nickname
+  roundMode:     0           // 0=R, 1=D, 2=blank
 };
 
 // ─── Persistence helpers ──────────────────────────────────────────────────────
@@ -56,6 +57,7 @@ window.saveSettings = function() {
   localStorage.setItem('s_target',       String(window.settings.defaultTarget));
   localStorage.setItem('s_cricketRounds', String(window.settings.cricketRounds));
   localStorage.setItem('s_nickname',     window.settings.nickname);
+  localStorage.setItem('s_roundmode',    String(window.settings.roundMode));
 };
 
 window.saveHistory = function() {
@@ -91,6 +93,8 @@ window.loadState = function() {
   if (target  !== null) { window.settings.defaultTarget = parseInt(target, 10) || 50; }
   if (cRnds   !== null) { window.settings.cricketRounds = parseInt(cRnds, 10)  || 10; }
   if (nick    !== null) { window.settings.nickname      = nick; }
+  var rm = localStorage.getItem('s_roundmode');
+  if (rm !== null) { window.settings.roundMode = parseInt(rm, 10) || 0; }
 
   // Mode
   var mode = localStorage.getItem('ocheMode');
@@ -99,6 +103,7 @@ window.loadState = function() {
   // Cricket drill target preference
   var savedCricketTarget = localStorage.getItem('ocheCricketTarget');
   if (savedCricketTarget !== null) { window.cricketTarget = savedCricketTarget; }
+  if (window.cricketTarget === 'B') { window.cricketTarget = '20'; }
 
   // Session arrays always reset on every page load
   window.rounds        = [];
