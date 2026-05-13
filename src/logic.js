@@ -134,7 +134,7 @@ window.getCount = function(val) {
 
 window.tapBull = function(val) {
   var now = Date.now();
-  if (now - window.lastTapTime < 50) return;
+  if (now - window.lastTapTime < 120) return;
   window.lastTapTime = now;
   if (getTotalBulls() >= window.settings.defaultTarget) return;
   if (window.sessionStartTime === null) { window.sessionStartTime = now; }
@@ -165,7 +165,7 @@ window.getCricketMPR = function() {
 
 window.tapCricket = function(marks) {
   var now = Date.now();
-  if (now - window.lastTapTime < 50) return;
+  if (now - window.lastTapTime < 120) return;
   window.lastTapTime = now;
   if (window.cricketRounds.length >= window.settings.cricketRounds) return;
   if (window.sessionStartTime === null) { window.sessionStartTime = now; }
