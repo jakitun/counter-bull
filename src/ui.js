@@ -862,7 +862,7 @@ window.buildBullGrid = function() {
   var html = '<div class="bull-grid">';
   for (var v = 0; v <= 3; v++) {
     html += '<button class="btn-tap"'
-      + ' ontouchstart="handleBullTap(' + v + ',this);event.preventDefault()"'
+      + ' ontouchend="handleBullTap(' + v + ',this);event.preventDefault()"'
       + ' onclick="handleBullTap(' + v + ',this)">'
       + v
       + '</button>';
@@ -879,7 +879,7 @@ window.buildCricketNumpad = function() {
     for (var c = 0; c < rows[r].length; c++) {
       var m = rows[r][c];
       html += '<button class="btn-cricket"'
-        + ' ontouchstart="handleCricketTap(' + m + ',this);event.preventDefault()"'
+        + ' ontouchend="handleCricketTap(' + m + ',this);event.preventDefault()"'
         + ' onclick="handleCricketTap(' + m + ',this)">'
         + m
         + '</button>';
@@ -888,7 +888,7 @@ window.buildCricketNumpad = function() {
   }
   html += '<div class="numpad-row numpad-row-zero">'
     + '<button class="btn-cricket btn-cricket-zero"'
-    + ' ontouchstart="handleCricketTap(0,this);event.preventDefault()"'
+    + ' ontouchend="handleCricketTap(0,this);event.preventDefault()"'
     + ' onclick="handleCricketTap(0,this)">0</button>'
     + '</div>';
   html += '</div>';
@@ -955,11 +955,11 @@ function renderPractice() {
     : (buildTargetStrip() + buildCricketNumpad());
 
   var actionStrip = '<div class="action-strip">'
-    + '<button ontouchstart="confirmEndSession();event.preventDefault()" onclick="confirmEndSession()" class="action-btn">'
+    + '<button ontouchend="confirmEndSession();event.preventDefault()" onclick="confirmEndSession()" class="action-btn">'
     + '<img src="src/vectors/end.svg" width="14" height="14" style="display:block;filter:brightness(0) invert(1);opacity:0.5">'
     + ' END'
     + '</button>'
-    + '<button ontouchstart="undoLast();event.preventDefault()" onclick="undoLast()" id="undo-btn" class="action-btn action-btn-right' + (undoDisabled ? ' action-btn-dim' : '') + '">'
+    + '<button ontouchend="undoLast();event.preventDefault()" onclick="undoLast()" id="undo-btn" class="action-btn action-btn-right' + (undoDisabled ? ' action-btn-dim' : '') + '">'
     + 'UNDO '
     + '<img src="src/vectors/undo.svg" width="14" height="14" style="display:block;filter:brightness(0) invert(1);opacity:0.5">'
     + '</button>'
